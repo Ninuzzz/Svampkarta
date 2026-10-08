@@ -12,8 +12,8 @@ const SWEDEN = L.latLngBounds([54.9, 10.4], [69.3, 24.4])
 export const CHANCE_NATIVE_ZOOM = 13
 /** Utzoomning med valt område: tillåt översikt om området är litet nog. */
 const AREA_TILE_BUDGET = 260
-/** Färdiga rutor som sparas när de scrollas ur bild (≈ 256 kB styck). */
-const KEEP = 220
+/** Färdiga rutor som sparas när de scrollas ur bild (≈ 256 kB styck): ~18 MB på mobil, ~40 MB på dator. */
+const KEEP = typeof matchMedia !== 'undefined' && matchMedia('(max-width: 768px), (pointer: coarse)').matches ? 72 : 160
 
 /** Minsta zoom där chansen visas: lägre för små valda områden, annars 12. */
 export function chanceMinZoom(bounds: [[number, number], [number, number]] | null) {

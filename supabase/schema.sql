@@ -1,5 +1,6 @@
 -- Mycel – synk mellan enheter (Supabase).
 -- Klistra in allt i Supabase → SQL Editor → Run. Kan köras flera gånger.
+-- Kör sedan hardening.sql (storleksgränser, behörigheter och tak per konto).
 --
 -- En rad per sparad sak (plats, dagboksinlägg, rutt, "hittade"-svar).
 -- Raderade saker ligger kvar som "deleted" så att raderingen når alla enheter.

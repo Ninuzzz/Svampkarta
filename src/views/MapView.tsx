@@ -22,7 +22,7 @@ import type { ChanceMode, ChanceOptions, Hotspot } from '../analysis/protocol'
 import { chanceMinZoom, type ChanceProgress } from '../map/ChanceLayer'
 import { AreaSheet, type AreaSelection } from '../map/AreaSheet'
 import { AreaCard, AreaOutlines } from '../map/AreaPicker'
-import { unionBounds, useKommunIndex, type Kommun } from '../lib/kommuner'
+import { kommunAt, unionBounds, useKommunIndex, type Kommun } from '../lib/kommuner'
 import { useOfflineSave, useOnline } from '../lib/offline'
 import { ChanceSettings, HotspotList, MinChanceCard, TargetPicker, WeatherCard } from '../map/ChancePanel'
 import { useTour } from '../components/Tour'
@@ -92,20 +92,6 @@ function mergeSpots(all: Hotspot[], bounds: L.LatLngBounds | null, zoom: number)
     if (out.length >= 10) break
   }
   return out
-}
-
-const reverseCache = new Map<string, Promise<string | null>>()
-function municipality(lat: number, lng: number) {
-  const k = `${lat.toFixed(2)},${lng.toFixed(2)}`
-  let p = reverseCache.get(k)
-  if (!p) {
-    p = fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&zoom=10&accept-language=sv&lat=${lat}&lon=${lng}`)
-      .then((r) => r.json())
-      .then((j) => (j?.address?.municipality || j?.address?.city || j?.address?.town || j?.address?.county || null) as string | null)
-      .catch(() => null)
-    reverseCache.set(k, p)
-  }
-  return p
 }
 
 function standImage(stand: NonNullable<NonNullable<AreaSelection['result']>['stand']>) {
@@ -257,7 +243,8 @@ export default function MapView() {
       setSelected(null)
       setArea({ lat, lng, result: null })
       setAreaPlace(null)
-      municipality(lat, lng).then((m) => setAreaPlace(m))
+      // kommunen räknas ut lokalt – klickade punkter (kanske hemliga ställen) skickas inte iväg
+      kommunAt(lat, lng).then((m) => setAreaPlace(m))
       analysis
         .inspect(lat, lng, chanceOpts)
         .then((result) => setArea((a) => (a && a.lat === lat && a.lng === lng ? { ...a, result } : a)))

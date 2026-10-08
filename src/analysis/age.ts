@@ -206,18 +206,26 @@ function getRange(file: AgeFile, start: number, end: number): Promise<Uint8Array
 
 /** På den publicerade sajten via den delade cachen, annars (eller om den inte svarar) direkt. */
 async function getRangeOnce(file: AgeFile, start: number, end: number): Promise<Uint8Array> {
-  if (import.meta.env.PROD) {
+  // Utvecklingsservern har en proxy (vite.config.ts). Den publicerade sajten går bara via
+  // den begränsade Netlify-funktionen – en öppen proxy till 3 GB-filen vore lätt att missbruka.
+  if (!import.meta.env.PROD) return fetchRange(file.url, start, end)
+  let lastError: unknown
+  for (let attempt = 0; attempt < 3; attempt++) {
     try {
       const res = await fetch(`/age-range/${file.cdn}/${start}-${end}`)
       if (res.ok) {
         const buf = new Uint8Array(await res.arrayBuffer())
         if (buf.length === end - start + 1) return buf
       }
-    } catch {
-      /* faller tillbaka på direkt hämtning */
+      if (res.status === 400) throw new Error('Skogsålder: ogiltigt anrop')
+      lastError = new Error(`Skogsålder: HTTP ${res.status}`)
+    } catch (e) {
+      lastError = e
+      if ((e as Error).message?.includes('ogiltigt')) break
     }
+    await new Promise((r) => setTimeout(r, 400 * (attempt + 1)))
   }
-  return fetchRange(file.url, start, end)
+  throw lastError
 }
 
 async function fetchRange(url: string, start: number, end: number, tries = 3): Promise<Uint8Array> {

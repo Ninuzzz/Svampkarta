@@ -14,21 +14,43 @@ const UPSTREAM: Record<string, { url: string; layer: string }> = {
   sgu: { url: 'https://maps3.sgu.se/geoserver/jord/ows', layer: 'SE.GOV.SGU.JORD.GRUNDLAGER.25K' },
 }
 
+const HALF = 20037508.342789244
+const BN = 576 // kartans block: 2 × 2 rutor à 256 px + 32 px marginal runt om
+const M = 32
+
+/**
+ * Bara exakt de bilder kartan själv begär: ett helt block i rutnätet (zoom 10–16),
+ * 576 × 576 px, EPSG:3857, PNG. Allt annat (godtyckliga utsnitt) avvisas – annars
+ * kan vem som helst skapa oändligt många unika adresser och tömma funktionskvoten.
+ * Appen hämtar då direkt från källan i stället, så inget går sönder.
+ */
+function isGridBlock(p: URLSearchParams, src: string) {
+  const fixed: Record<string, string> = { service: 'WMS', version: '1.1.1', request: 'GetMap', styles: '', format: 'image/png', transparent: 'true', srs: 'EPSG:3857' }
+  for (const [k, v] of Object.entries(fixed)) if (p.get(k) !== v) return false
+  const fo = p.get('format_options')
+  if (fo !== null && !(src === 'sgu' && fo === 'antialias:none')) return false
+  if (p.get('width') !== String(BN) || p.get('height') !== String(BN)) return false
+  const b = (p.get('bbox') ?? '').split(',').map(Number)
+  if (b.length !== 4 || b.some((v) => !Number.isFinite(v))) return false
+  const [minx, miny, maxx, maxy] = b
+  const mpp = (maxx - minx) / BN
+  if (!(mpp > 0) || Math.abs((maxy - miny) / BN - mpp) > mpp * 1e-6) return false
+  const z = Math.log2((2 * HALF) / (256 * mpp))
+  if (Math.abs(z - Math.round(z)) > 1e-6 || z < 9.5 || z > 16.5) return false
+  const span = (2 * HALF) / 2 ** Math.round(z)
+  const bx = (minx + HALF + M * mpp) / (2 * span)
+  const by = (HALF + M * mpp - maxy) / (2 * span)
+  return Math.abs(bx - Math.round(bx)) < 1e-6 && Math.abs(by - Math.round(by)) < 1e-6
+}
+
 const ALLOWED = ['service', 'version', 'request', 'layers', 'styles', 'format', 'transparent', 'srs', 'bbox', 'width', 'height', 'format_options']
 
 export default async (req: Request) => {
   const url = new URL(req.url)
-  const src = UPSTREAM[url.pathname.split('/').pop() ?? '']
+  const name = url.pathname.split('/').pop() ?? ''
+  const src = UPSTREAM[name]
   const p = url.searchParams
-  const size = Math.max(Number(p.get('width')), Number(p.get('height')))
-  if (
-    !src ||
-    p.get('request') !== 'GetMap' ||
-    p.get('layers') !== src.layer ||
-    !/^-?[\d.]+(,-?[\d.]+){3}$/.test(p.get('bbox') ?? '') ||
-    !(size > 0 && size <= 1024)
-  )
-    return new Response('Ogiltig förfrågan', { status: 400 })
+  if (!src || p.get('layers') !== src.layer || !isGridBlock(p, name)) return new Response('Ogiltig förfrågan', { status: 400 })
 
   const q = new URLSearchParams()
   for (const k of ALLOWED) if (p.has(k)) q.set(k, p.get(k)!)

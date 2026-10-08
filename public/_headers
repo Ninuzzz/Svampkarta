@@ -15,7 +15,12 @@
 /icons/*
   Cache-Control: public, max-age=604800
 
+# Säkerhet för alla sidor:
+# - X-Frame-Options: får inte bäddas in på andra sidor (skydd mot klickkapning av inloggningen)
+# - Content-Security-Policy: bara kända källor får laddas eller anropas
 /*
   X-Content-Type-Options: nosniff
   Referrer-Policy: strict-origin-when-cross-origin
+  X-Frame-Options: DENY
+  Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data: blob: https://clarity.maptiles.arcgis.com https://server.arcgisonline.com https://tile.openstreetmap.org https://*.tile.opentopomap.org; connect-src 'self' https://ltbvswyfmuyzprvsngvh.supabase.co https://geodata.naturvardsverket.se https://maps3.sgu.se https://s3.amazonaws.com https://tiles.openfreemap.org https://api.open-meteo.com https://nominatim.openstreetmap.org https://clarity.maptiles.arcgis.com https://server.arcgisonline.com https://tile.openstreetmap.org https://*.tile.opentopomap.org; worker-src 'self'; manifest-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests
   Permissions-Policy: geolocation=(self), camera=(), microphone=()

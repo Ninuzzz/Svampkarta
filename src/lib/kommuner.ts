@@ -74,3 +74,45 @@ export function unionBounds(index: Kommun[], ids: string[]): [[number, number], 
     [Math.max(...ks.map((k) => k.bbox[3])), Math.max(...ks.map((k) => k.bbox[2]))],
   ]
 }
+
+/** Jämn-udda-test: ligger punkten i någon av polygonerna (hål räknas bort)? */
+function inside(polygons: [number, number][][][], x: number, y: number) {
+  for (const poly of polygons) {
+    let c = false
+    for (const ring of poly)
+      for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+        const [xi, yi] = ring[i], [xj, yj] = ring[j]
+        if (yi > y !== yj > y && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi) c = !c
+      }
+    if (c) return true
+  }
+  return false
+}
+
+/** Kommuner som inte heter "X kommun" */
+const OFFICIAL: Record<string, string> = {
+  Stockholm: 'Stockholms stad',
+  Göteborg: 'Göteborgs stad',
+  Malmö: 'Malmö stad',
+  Solna: 'Solna stad',
+  Sundbyberg: 'Sundbybergs stad',
+  Lidingö: 'Lidingö stad',
+  Vaxholm: 'Vaxholms stad',
+  Falun: 'Falu kommun',
+  Gotland: 'Region Gotland',
+}
+
+/** Kommunen en punkt ligger i – räknas lokalt ur gränserna, inget skickas till någon tjänst. */
+export async function kommunAt(lat: number, lng: number): Promise<string | null> {
+  try {
+    const index = await loadIndex()
+    for (const k of index) {
+      if (lng < k.bbox[0] || lng > k.bbox[2] || lat < k.bbox[1] || lat > k.bbox[3]) continue
+      const shape = await loadShape(k.id)
+      if (shape && inside(shape.polygons, lng, lat)) return OFFICIAL[k.name] ?? `${k.name} kommun`
+    }
+  } catch {
+    /* utan nät och utan sparade gränser – visa inget */
+  }
+  return null
+}

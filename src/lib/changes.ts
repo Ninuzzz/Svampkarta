@@ -16,6 +16,8 @@ export const KINDS: { kind: SyncKind; field: 'places' | 'logs' | 'routes' | 'fee
 ]
 
 export const SYNC_USER_KEY = 'mycel:sync-user'
+/** kontot som datan på den här enheten hör till (finns kvar efter utloggning) */
+export const OWNER_KEY = 'mycel:sync-owner'
 const CHANGES_KEY = 'mycel:changes'
 
 export interface Changes {
@@ -44,9 +46,10 @@ export function saveChanges(c: Changes) {
   }
 }
 
+/** Spåra ändringar på enheter som har synkat – även medan man är utloggad, så att allt kommer med vid nästa inloggning. */
 export const syncEnabled = () => {
   try {
-    return !!localStorage.getItem(SYNC_USER_KEY)
+    return !!(localStorage.getItem(SYNC_USER_KEY) || localStorage.getItem(OWNER_KEY))
   } catch {
     return false
   }

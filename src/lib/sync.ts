@@ -2,7 +2,7 @@ import { useSyncExternalStore } from 'react'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { actions, applyRemote } from './store'
 import { getPhoto, putPhoto } from './photos'
-import { KINDS, SYNC_USER_KEY, loadChanges, onLocalChange, saveChanges, type SyncKind } from './changes'
+import { KINDS, OWNER_KEY, SYNC_USER_KEY, loadChanges, onLocalChange, saveChanges, type SyncKind } from './changes'
 import type { AppData } from './types'
 
 /*
@@ -74,6 +74,8 @@ export async function googleLogin() {
 }
 
 export async function signOut() {
+  // skicka upp det som väntar innan kontot släpps (högst några sekunder)
+  await Promise.race([syncNow(), new Promise((r) => setTimeout(r, 5000))]).catch(() => {})
   await (await client()).auth.signOut().catch(() => {})
   try {
     localStorage.removeItem(SYNC_USER_KEY)
@@ -85,7 +87,8 @@ export async function signOut() {
 
 function friendly(msg: string) {
   if (/rate limit|too many|security purposes/i.test(msg)) return 'För många försök just nu – vänta en stund och försök igen.'
-  if (/expired|invalid/i.test(msg)) return 'Koden stämmer inte eller har gått ut. Be om en ny.'
+  if (/validate email|invalid.*email|email.*(invalid|format)/i.test(msg)) return 'E-postadressen ser inte rätt ut.'
+  if (/token.*(expired|invalid)|otp.*(expired|invalid)|(expired|invalid).*(token|otp|code)/i.test(msg)) return 'Koden stämmer inte eller har gått ut. Be om en ny.'
   if (/provider is not enabled|unsupported provider/i.test(msg)) return 'Inloggning med Google är inte påslagen än.'
   if (/code verifier|both auth code/i.test(msg)) return 'Länken öppnades i en annan webbläsare än där du bad om den. Skriv in koden från mejlet i stället.'
   if (/fetch|network/i.test(msg)) return 'Ingen kontakt med servern. Kontrollera nätet.'
@@ -132,12 +135,13 @@ export const ensureStarted = () => (syncAvailable ? start() : Promise.resolve())
 
 function onSignedIn(id: string, email: string | null) {
   if (state.user?.id === id) return
+  switchOwner(id)
   try {
     localStorage.setItem(SYNC_USER_KEY, id)
   } catch {
     /* ignorera */
   }
-  firstTimeOnDevice(id)
+  markUnsynced(id)
   set({ user: { id, email }, status: 'synkar', message: null })
   watch()
   void syncNow()
@@ -154,14 +158,13 @@ interface Meta {
   sent: Record<string, number>
   /** foton som finns i molnet */
   photosUp: string[]
-  init: boolean
 }
 const metaKey = (uid: string) => `mycel:sync:${uid}`
 const loadMeta = (uid: string): Meta => {
   try {
-    return { pulled: null, sent: {}, photosUp: [], init: false, ...JSON.parse(localStorage.getItem(metaKey(uid)) ?? '{}') }
+    return { pulled: null, sent: {}, photosUp: [], ...JSON.parse(localStorage.getItem(metaKey(uid)) ?? '{}') }
   } catch {
-    return { pulled: null, sent: {}, photosUp: [], init: false }
+    return { pulled: null, sent: {}, photosUp: [] }
   }
 }
 const saveMeta = (uid: string, m: Meta) => {
@@ -175,19 +178,68 @@ const saveMeta = (uid: string, m: Meta) => {
 type AnyItem = { id: string; demo?: boolean; updatedAt?: string; createdAt?: string; date?: string; photoIds?: string[] }
 const itemsOf = (d: AppData, field: (typeof KINDS)[number]['field']) => ((d[field] ?? []) as AnyItem[]).filter((x) => !x.demo)
 
-/** Första inloggningen på den här enheten: allt som redan finns här ska med upp. */
-function firstTimeOnDevice(uid: string) {
+/**
+ * Datan på enheten tillhör kontot som senast synkade här. Loggar ett annat konto
+ * in sparas den undan (och tas fram igen om det förra kontot loggar in), så att
+ * ett kontos platser aldrig laddas upp till någon annans konto.
+ */
+const backupKey = (uid: string) => `mycel:backup:${uid}`
+function switchOwner(id: string) {
+  let owner: string | null = null
+  try {
+    owner = localStorage.getItem(OWNER_KEY)
+  } catch {
+    return
+  }
+  if (owner === id) return
+  const fields = KINDS.map((k) => k.field)
+  if (owner) {
+    const snap = actions.snapshot()
+    try {
+      localStorage.setItem(backupKey(owner), JSON.stringify(Object.fromEntries(fields.map((f) => [f, snap[f] ?? []]))))
+    } catch {
+      /* fullt – datan finns ändå kvar i det förra kontots moln */
+    }
+    applyRemote({ ...snap, places: [], logs: [], routes: [], feedback: [] })
+    saveChanges({ t: {}, del: {}, photosDel: [] })
+  }
+  // tillbaka på en enhet där kontot har sparad data sedan förut
+  try {
+    const raw = localStorage.getItem(backupKey(id))
+    if (raw) {
+      const backup = JSON.parse(raw) as Partial<AppData>
+      const snap = structuredClone(actions.snapshot())
+      const c = loadChanges()
+      for (const { kind, field } of KINDS) {
+        const have = new Set(((snap[field] ?? []) as AnyItem[]).map((x) => x.id))
+        const add = ((backup[field] ?? []) as AnyItem[]).filter((x) => !have.has(x.id))
+        ;(snap as unknown as Record<string, AnyItem[]>)[field] = [...add, ...((snap[field] ?? []) as AnyItem[])]
+        for (const it of add) c.t[`${kind}:${it.id}`] ||= Date.parse(it.updatedAt ?? it.createdAt ?? it.date ?? '') || 1
+      }
+      applyRemote(snap)
+      saveChanges(c)
+      localStorage.removeItem(backupKey(id))
+    }
+    localStorage.setItem(OWNER_KEY, id)
+  } catch {
+    /* ignorera */
+  }
+}
+
+/** Vid varje inloggning: allt på enheten som inte redan finns i molnet ska med upp. */
+function markUnsynced(uid: string) {
   const meta = loadMeta(uid)
-  if (meta.init) return
   const c = loadChanges()
   const d = actions.snapshot()
+  let changed = false
   for (const { kind, field } of KINDS)
     for (const it of itemsOf(d, field)) {
       const key = `${kind}:${it.id}`
-      if (!c.t[key]) c.t[key] = Date.parse(it.updatedAt ?? it.createdAt ?? it.date ?? '') || 1
+      if (c.t[key] || key in meta.sent) continue
+      c.t[key] = Date.parse(it.updatedAt ?? it.createdAt ?? it.date ?? '') || 1
+      changed = true
     }
-  saveChanges(c)
-  saveMeta(uid, { ...meta, init: true })
+  if (changed) saveChanges(c)
 }
 
 let running: Promise<void> | null = null
@@ -216,12 +268,12 @@ async function doSync() {
   set({ status: 'synkar' })
   const sb = await client()
   const meta = loadMeta(user.id)
-  const c = loadChanges()
 
-  // 1. Hämta det som ändrats på servern (med lite överlapp – dubbletter sorteras bort på ändringstid)
+  // 1. Hämta det som ändrats på servern, alla sidor, innan något tillämpas
+  //    (med lite överlapp – dubbletter sorteras bort på ändringstid)
+  type Row = { kind: SyncKind; id: string; data: AnyItem | null; deleted: boolean; changed_at: string; updated_at: string }
+  const remote: Row[] = []
   let since = meta.pulled ? new Date(Date.parse(meta.pulled) - 5000).toISOString() : '1970-01-01T00:00:00Z'
-  let data: AppData | null = null
-  const wantPhotos = new Set<string>()
   for (;;) {
     const { data: rows, error } = await sb
       .from('items')
@@ -230,7 +282,19 @@ async function doSync() {
       .order('updated_at')
       .limit(1000)
     if (error) throw new Error(error.message)
-    for (const r of rows as { kind: SyncKind; id: string; data: AnyItem | null; deleted: boolean; changed_at: string; updated_at: string }[]) {
+    remote.push(...(rows as Row[]))
+    if (rows.length) since = rows[rows.length - 1].updated_at
+    if (rows.length < 1000) break
+  }
+
+  // Tillämpa mot det aktuella läget i ett svep – ingen väntan härifrån till sparandet,
+  // så ändringar som gjordes medan hämtningen pågick finns med och skrivs inte över
+  const wantPhotos = new Set<string>()
+  if (remote.length) {
+    const c = loadChanges()
+    let data: AppData | null = null
+    for (const r of remote) {
+      if (!KINDS.some((k) => k.kind === r.kind)) continue
       const key = `${r.kind}:${r.id}`
       const remoteT = Date.parse(r.changed_at)
       const localT = c.t[key] ?? c.del[key] ?? 0
@@ -238,8 +302,8 @@ async function doSync() {
         data ??= structuredClone(actions.snapshot())
         const field = KINDS.find((k) => k.kind === r.kind)!.field
         const list = ((data[field] ?? []) as AnyItem[]).filter((x) => x.id !== r.id)
-        if (!r.deleted && r.data) {
-          list.unshift(r.data)
+        if (!r.deleted && r.data && typeof r.data === 'object') {
+          list.unshift({ ...r.data, id: r.id })
           r.data.photoIds?.forEach((p) => wantPhotos.add(p))
         }
         ;(data as unknown as Record<string, AnyItem[]>)[field] = list
@@ -253,19 +317,20 @@ async function doSync() {
       }
       if (remoteT >= localT) meta.sent[key] = Math.max(meta.sent[key] ?? 0, remoteT)
     }
-    if (rows.length) since = meta.pulled = rows[rows.length - 1].updated_at
-    if (rows.length < 1000) break
+    if (data) {
+      // nyast först, som appen själv sorterar
+      data.places.sort((a, b) => (b.updatedAt ?? '').localeCompare(a.updatedAt ?? ''))
+      data.logs.sort((a, b) => b.date.localeCompare(a.date))
+      data.routes.sort((a, b) => b.date.localeCompare(a.date))
+      applyRemote(data)
+    }
+    saveChanges(c)
+    meta.pulled = remote[remote.length - 1].updated_at
+    saveMeta(user.id, meta)
   }
-  if (data) {
-    // nyast först, som appen själv sorterar
-    data.places.sort((a, b) => (b.updatedAt ?? '').localeCompare(a.updatedAt ?? ''))
-    data.logs.sort((a, b) => b.date.localeCompare(a.date))
-    data.routes.sort((a, b) => b.date.localeCompare(a.date))
-    applyRemote(data)
-  }
-  saveChanges(c)
 
-  // 2. Skicka upp det som ändrats här
+  // 2. Skicka upp det som ändrats här (läses färskt efter hämtningen)
+  const c = loadChanges()
   const now = actions.snapshot()
   const byKey = new Map<string, AnyItem>()
   for (const { kind, field } of KINDS) for (const it of itemsOf(now, field)) byKey.set(`${kind}:${it.id}`, it)
@@ -308,10 +373,15 @@ async function doSync() {
       up.add(pid)
     }
   }
-  if (c.photosDel.length) {
-    await bucket.remove(c.photosDel.map((p) => `${user.id}/${p}`))
-    c.photosDel.forEach((p) => up.delete(p))
-    saveChanges({ ...loadChanges(), photosDel: [] })
+  const removed = [...new Set(loadChanges().photosDel)]
+  if (removed.length) {
+    const { error } = await bucket.remove(removed.map((p) => `${user.id}/${p}`))
+    if (!error) {
+      // bara de som faktiskt togs bort – nya som köats under tiden ligger kvar
+      const fresh = loadChanges()
+      saveChanges({ ...fresh, photosDel: fresh.photosDel.filter((p) => !removed.includes(p)) })
+      removed.forEach((p) => up.delete(p))
+    }
   }
   meta.photosUp = [...up]
   saveMeta(user.id, meta)
