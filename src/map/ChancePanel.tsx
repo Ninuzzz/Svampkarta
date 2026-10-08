@@ -234,6 +234,7 @@ export function WeatherCard({ weather, error }: { weather: Weather | null; error
 
 export function HotspotList({
   spots,
+  labelPct,
   progress,
   center,
   onPick,
@@ -242,6 +243,8 @@ export function HotspotList({
   minChance = 0,
 }: {
   spots: Hotspot[]
+  /** procent först (standard), annars Bäst/Bra/Möjlig först */
+  labelPct: boolean
   progress: { done: number; total: number }
   center: { lat: number; lng: number }
   onPick: (h: Hotspot) => void
@@ -279,8 +282,12 @@ export function HotspotList({
                   </span>
                 </span>
                 <span className="flex flex-col items-end">
-                  <span className="rounded-full bg-chance-soft px-2 py-0.5 text-xs font-bold text-chance-ink">{hotspotTier(h.score, spots[0].score)}</span>
-                  <span className="mt-0.5 text-[11px] text-ink-muted tabular">{Math.round(h.score * 100)}&nbsp;% chans</span>
+                  <span className="rounded-full bg-chance-soft px-2 py-0.5 text-xs font-bold text-chance-ink tabular">
+                    {labelPct ? `${Math.round(h.score * 100)} %` : hotspotTier(h.score, spots[0].score)}
+                  </span>
+                  <span className="mt-0.5 text-[11px] text-ink-muted tabular">
+                    {labelPct ? hotspotTier(h.score, spots[0].score) : `${Math.round(h.score * 100)} % chans`}
+                  </span>
                 </span>
               </button>
             </li>

@@ -48,8 +48,11 @@ interface MapPrefs {
   areas: string[]
   /** analysera allt som syns i stället för valda kommuner */
   wholeView: boolean
-  /** toppar på kartan: procent i stället för Bäst/Bra/Möjlig */
-  labelPct: boolean
+  /**
+   * toppar på kartan: Bäst/Bra/Möjlig i stället för procent. Ny nyckel (förr
+   * labelPct) så att alla får procent som standard, även de som sparat valet.
+   */
+  labelWords: boolean
 }
 
 const PREFS_KEY = 'mycel:map'
@@ -68,7 +71,7 @@ const DEFAULT_PREFS: MapPrefs = {
   minAreaHa: 2,
   areas: [HOME.kommun],
   wholeView: false,
-  labelPct: false,
+  labelWords: false,
 }
 
 function loadPrefs(): MapPrefs {
@@ -359,7 +362,7 @@ export default function MapView() {
             <Marker
               key={`${h.lat},${h.lng},${h.species}`}
               position={[h.lat, h.lng]}
-              icon={hotspotIcon(h, spots[0].score, isActive(h), prefs.labelPct)}
+              icon={hotspotIcon(h, spots[0].score, isActive(h), !prefs.labelWords)}
               title={`${SPECIES_BY_ID[h.species].name} – ${hotspotTier(h.score, spots[0].score)} i vyn · ${Math.round(h.score * 100)} % chans`}
               alt={`${SPECIES_BY_ID[h.species].name}, ${hotspotTier(h.score, spots[0].score)} i vyn, ${Math.round(h.score * 100)} procent chans`}
               zIndexOffset={500 - i}
@@ -447,6 +450,7 @@ export default function MapView() {
             />
             <HotspotList
               spots={spots}
+              labelPct={!prefs.labelWords}
               progress={rawSpots.progress}
               center={me ?? center}
               target={prefs.target}
@@ -463,8 +467,8 @@ export default function MapView() {
             <ChanceSettings
               mode={prefs.chanceMode}
               onMode={(chanceMode) => setPrefs((p) => ({ ...p, chanceMode }))}
-              labelPct={prefs.labelPct}
-              onLabelPct={(labelPct) => setPrefs((p) => ({ ...p, labelPct }))}
+              labelPct={!prefs.labelWords}
+              onLabelPct={(pct) => setPrefs((p) => ({ ...p, labelWords: !pct }))}
               learned={learning.count}
             />
           </>
