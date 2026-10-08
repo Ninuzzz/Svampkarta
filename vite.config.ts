@@ -47,7 +47,9 @@ function serviceWorker(): Plugin {
       const sw = fs
         .readFileSync('src/sw.js', 'utf8')
         .replace("const VERSION = '__VERSION__'", `const VERSION = '${hash.digest('hex').slice(0, 12)}'`)
-        .replace('const PRECACHE = __PRECACHE__', `const PRECACHE = ${JSON.stringify(precache)}`)
+        // Cloudflare Pages skickar /index.html vidare till / – en vidarebefordrad
+        // sida får inte användas som svar på en sidladdning, så appen sparas som /
+        .replace('const PRECACHE = __PRECACHE__', `const PRECACHE = ${JSON.stringify(precache.map((f) => (f === '/index.html' ? '/' : f)))}`)
       fs.writeFileSync(path.join(outDir, 'sw.js'), sw)
     },
   }

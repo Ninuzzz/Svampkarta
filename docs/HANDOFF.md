@@ -8,7 +8,7 @@ Läs den här filen först i en ny session. Den beskriver läget, hur allt häng
 Den räknar fram var chansen är störst att hitta 7 svampar och 6 bär, utifrån skog, jordart, terräng, skogsålder, stigar och väder.
 Användarna kan spara egna platser, dagbok och rutter.
 
-- **Live:** https://mycel-svampkarta.netlify.app (Netlify, manuell deploy, se nedan)
+- **Live:** https://mycel-svampkarta.pages.dev (Cloudflare Pages, manuell deploy, se nedan). Flyttad från Netlify 2026-10-08 när Netlifys gratiskrediter tog slut; den gamla adressen mycel-svampkarta.netlify.app visar en äldre version så länge Netlify håller den uppe.
 - **Kod:** https://github.com/Ninuzzz/Svampkarta (gren `main`)
 - **Hemkommun:** Landskrona (`src/lib/home.ts`, kommunkod 1282)
 - **Språk i UI och kodkommentarer:** svenska. Användaren vill ha korta, handlingsinriktade svar på svenska.
@@ -16,13 +16,13 @@ Användarna kan spara egna platser, dagbok och rutter.
 ## Publicera
 
 ```bash
-npm run build
-npx -y netlify-cli@latest deploy --prod --no-build --dir dist
+npm run deploy
 ```
 
-- Netlify-funktionerna i `netlify/functions/` följer med automatiskt.
-- Netlify-kontot har krediter: varje produktionsdeploy kostar krediter, och när de tar slut blockeras nya deployer (fel 403 "Account credit usage exceeded"). Samla ändringar och deploya sällan. 2026-10-08 tog krediterna slut; commit `204c158` (markering av chansområdet) är pushad men inte publicerad.
-Netlify tömmer CDN-cachen vid varje deploy. Första kartladdningen efter en deploy tar cirka 13 s, därefter cirka 6 s.
+- Skriptet bygger och kör `wrangler pages deploy` (projekt `mycel-svampkarta`, inställningar i `wrangler.toml`). Wrangler är inloggat med användarens Cloudflare-konto (`npx -y wrangler@4.148.0 login`).
+- Funktionerna i `functions/` följer med automatiskt. Själva logiken finns i `server/` (`wms.ts`, `age.ts`), och `server/cache.ts` lägger Cloudflares cache framför dem (ett år per datacenter).
+- Cloudflare Pages: `/integritet.html` vidarebefordras till `/integritet`, och `/index.html` till `/`. Därför sparar service workern appen som `/`.
+- Gratisplanen tillåter 100 000 funktionsanrop per dag. Når man taket hämtar workern direkt från källan efter 2,5 s.
 - Git: commit med `-c user.name=Ninuzzz -c user.email=linus4091@gmail.com`, push till `origin main`.
 
 ## Arkitektur i korthet
@@ -48,8 +48,8 @@ Netlify tömmer CDN-cachen vid varje deploy. Första kartladdningen efter en dep
 | Stigar | OpenFreeMap-vektorrutor |
 | Väder | Open-Meteo |
 
-- NMD och SGU går via `netlify/functions/wms.mts`, en delad CDN-cache som bara godtar exakta rutnätsblock. Om cachen inte svarat inom 2,5 s hämtar workern direkt från källan.
-- SLU-åldern går via `netlify/functions/age.mts`, med fasta byte-spann på högst 1 MB.
+- NMD och SGU går via `server/wms.ts` (`/wms/:src`), en delad cache som bara godtar exakta rutnätsblock. Om cachen inte svarat inom 2,5 s hämtar workern direkt från källan.
+- SLU-åldern går via `server/age.ts` (`/age-range/:file/:range`), med fasta byte-spann på högst 1 MB.
 - Den öppna `/slu-age`-proxyn är **borttagen** i produktion. Den finns bara i Vite-dev (`vite.config.ts`).
 
 **Offline / PWA**
@@ -106,7 +106,7 @@ Gjort:
 - `hardening.sql` är körd (bekräftat 2026-10-08).
 - E-postmallarna från `supabase/email/` är inlagda (bekräftat 2026-10-08).
 
-- Google-appen är publicerad (In production, 2026-10-08). Branding har startsida och länk till `public/integritet.html`.
+- Google-appen är publicerad (In production, 2026-10-08). Branding har startsida och länk till integritetssidan (`public/integritet.html`). Efter flytten måste adresserna där och i Supabase (Site URL, Redirect URLs) bytas till pages.dev.
 
 Oklart eller kvar:
 - Synken är testad av användaren med ett riktigt Google-konto på två enheter (2026-10-08).

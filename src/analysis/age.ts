@@ -11,7 +11,7 @@
 
 interface AgeFile {
   url: string
-  /** namn i Netlify-cachen (netlify/functions/age.mts) */
+  /** namn i den delade cachen (server/age.ts) */
   cdn: string
   offsetsAt: number // TileOffsets (LONG8)
   countsAt: number // TileByteCounts (LONG)
@@ -178,7 +178,7 @@ const MEM = 600 // ≈ 20 MB avkodade rutor per worker
 /*
  * Hämtningarna görs i fasta bitar – index för 8 rader i taget och data för 16
  * rutor i en rad i taget – så att samma del av kartan alltid ger samma
- * byte-spann. Då kan Netlifys CDN spara svaren åt alla besökare.
+ * byte-spann. Då kan Cloudflares cache spara svaren åt alla besökare.
  */
 const INDEX_ROWS = 8
 const CHUNK = 16
@@ -207,7 +207,7 @@ function getRange(file: AgeFile, start: number, end: number): Promise<Uint8Array
 /** På den publicerade sajten via den delade cachen, annars (eller om den inte svarar) direkt. */
 async function getRangeOnce(file: AgeFile, start: number, end: number): Promise<Uint8Array> {
   // Utvecklingsservern har en proxy (vite.config.ts). Den publicerade sajten går bara via
-  // den begränsade Netlify-funktionen – en öppen proxy till 3 GB-filen vore lätt att missbruka.
+  // den begränsade funktionen (server/age.ts) – en öppen proxy till 3 GB-filen vore lätt att missbruka.
   if (!import.meta.env.PROD) return fetchRange(file.url, start, end)
   let lastError: unknown
   for (let attempt = 0; attempt < 3; attempt++) {

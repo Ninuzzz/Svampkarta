@@ -3,8 +3,9 @@
  *
  * Deras WMS-servrar är långsamma (ofta flera sekunder per bild) och skickar
  * inga cache-huvuden. Kartan begär alltid samma block (zoom 13, 2 × 2 rutor),
- * så svaret sparas i Netlifys CDN: första besökaren hämtar från källan, alla
- * andra får bilden direkt. Källdatan ändras bara när en ny version släpps.
+ * så svaret sparas i Cloudflares cache (se cache.ts): första besökaren hämtar
+ * från källan, alla andra får bilden direkt. Källdatan ändras bara när en ny
+ * version släpps.
  *
  * Endast GetMap-anrop mot de två kända lagren släpps igenom.
  */
@@ -45,7 +46,7 @@ function isGridBlock(p: URLSearchParams, src: string) {
 
 const ALLOWED = ['service', 'version', 'request', 'layers', 'styles', 'format', 'transparent', 'srs', 'bbox', 'width', 'height', 'format_options']
 
-export default async (req: Request) => {
+export async function wms(req: Request) {
   const url = new URL(req.url)
   const name = url.pathname.split('/').pop() ?? ''
   const src = UPSTREAM[name]
@@ -62,11 +63,8 @@ export default async (req: Request) => {
     headers: {
       'content-type': type,
       'access-control-allow-origin': '*',
-      // webbläsaren: en vecka; Netlifys CDN: ett år, delat mellan alla kantnoder
+      // webbläsaren: en vecka (Cloudflares cache sparar ett år, se cache.ts)
       'cache-control': 'public, max-age=604800',
-      'netlify-cdn-cache-control': 'public, durable, s-maxage=31536000, stale-while-revalidate=604800',
     },
   })
 }
-
-export const config = { path: '/wms/:src' }

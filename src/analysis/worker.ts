@@ -60,8 +60,8 @@ let cacheP: Promise<Cache | null> | null = null
 const openCache = () => (cacheP ??= 'caches' in self ? caches.open(CACHE_NAME).catch(() => null) : Promise.resolve(null))
 
 /**
- * På den publicerade sajten går NMD- och SGU-bilderna via Netlifys delade cache
- * (netlify/functions/wms.mts) – källservrarna är långsamma. Svarar inte cachen
+ * På den publicerade sajten går NMD- och SGU-bilderna via Cloudflares delade cache
+ * (server/wms.ts) – källservrarna är långsamma. Svarar inte cachen
  * hämtas bilden direkt från källan.
  */
 function viaCdn(url: string) {

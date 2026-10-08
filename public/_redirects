@@ -1,2 +1,2 @@
 # Inga proxyregler: SLU:s skogsålderskarta läses via den begränsade funktionen
-# netlify/functions/age.mts (en öppen proxy till 3 GB-filen gick att missbruka).
+# server/age.ts (en öppen proxy till 3 GB-filen gick att missbruka).

@@ -95,8 +95,8 @@ self.addEventListener('fetch', (e) => {
   if (url.origin === self.location.origin) {
     // sidan: senaste versionen om nätet finns, annars den sparade
     // integritetspolicyn är en egen statisk sida, inte appen
-    if (req.mode === 'navigate' && url.pathname !== '/integritet.html') {
-      e.respondWith(networkFirst(new Request('/index.html'), APP, 4000))
+    if (req.mode === 'navigate' && !url.pathname.startsWith('/integritet')) {
+      e.respondWith(networkFirst(new Request('/'), APP, 4000))
       return
     }
     if (url.pathname.startsWith('/assets/') || url.pathname.startsWith('/guide/') || url.pathname.startsWith('/icons/') || url.pathname.startsWith('/img/')) {

@@ -1,0 +1,5 @@
+# Cloudflare Pages: statisk sajt (dist) och funktionerna i functions/.
+# Publicera: npm run deploy
+name = "mycel-svampkarta"
+pages_build_output_dir = "dist"
+compatibility_date = "2026-09-01"

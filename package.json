@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "deploy": "npm run build && npx -y wrangler@4.148.0 pages deploy --branch main"
   },
   "dependencies": {
     "@fontsource-variable/figtree": "^5.3.0",
