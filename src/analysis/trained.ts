@@ -1,6 +1,7 @@
 /**
  * Genererad av scripts/train/fit.ts – ändra inte för hand.
- * Vikter tränade på öppna fynd från GBIF (bl.a. Artportalen), 2016–2025.
+ * Vikter tränade på öppna fynd från GBIF (bl.a. Artportalen), 2016–2025, och för vissa arter även svampkarta.se (extra).
+ * Testet görs alltid på GBIF-fynd.
  * Alla mått är medel över 5-faldig geografisk korsvalidering (mätt på platser modellen inte tränats på).
  * auc  = sannolikheten att en riktig fyndplats får högre poäng än ett annat svamp-/växtfynd (0,5 = slump, 1 = perfekt).
  * land = samma sak mot slumpade punkter på svensk mark.
@@ -12,6 +13,8 @@ import type { SpeciesId, SpeciesModel } from './species.ts'
 export interface TrainedInfo {
   used: boolean
   n: number
+  /** varav fynd från svampkarta.se */
+  extra: number
   /** antal testgrupper och hur många av dem där tränade vikter var bättre */
   folds: number
   better: number
@@ -31,47 +34,48 @@ export const TRAINING_DATE = '2026-10-08'
 export const TRAINED: Partial<Record<SpeciesId, TrainedInfo>> = {
   "kantarell": {
     "used": true,
-    "n": 300,
+    "n": 1800,
+    "extra": 1500,
     "folds": 5,
     "better": 5,
     "aucExpert": 0.431,
-    "aucTrained": 0.458,
+    "aucTrained": 0.498,
     "landExpert": 0.578,
-    "landTrained": 0.678,
+    "landTrained": 0.701,
     "landForest": 0.611,
     "hitExpert": 0.153,
-    "hitTrained": 0.384,
+    "hitTrained": 0.436,
     "hitForest": 0.25,
     "params": {
       "tree": {
-        "tall": 0.245,
+        "tall": 0.196,
         "gran": 1,
-        "barrbland": 0.72,
-        "lovbarr": 0.432,
-        "triv": 0.88,
+        "barrbland": 0.576,
+        "lovbarr": 0.668,
+        "triv": 0.713,
         "adel": 1,
         "fjall": 0.3,
-        "hygge": 0.048
+        "hygge": 0.044
       },
       "wet": {
-        "dry": 0.9,
-        "wet": 0.55
+        "dry": 1,
+        "wet": 0.484
       },
       "soil": {
         "sand": 1,
-        "moran": 0.48,
-        "lera": 0.288,
-        "torv": 0.432,
-        "berg": 0.743
+        "moran": 0.6,
+        "lera": 0.405,
+        "torv": 0.327,
+        "berg": 1
       },
-      "tpi": -0.05,
-      "south": -0.05,
+      "tpi": 0,
+      "south": 0.05,
       "openEdge": 0.22,
       "wetEdge": 0.08,
       "continuity": 0.35,
       "age": [
         12,
-        48,
+        27,
         120,
         200,
         0.9
@@ -80,48 +84,49 @@ export const TRAINED: Partial<Record<SpeciesId, TrainedInfo>> = {
   },
   "trattkantarell": {
     "used": true,
-    "n": 300,
+    "n": 1800,
+    "extra": 1500,
     "folds": 5,
     "better": 5,
     "aucExpert": 0.559,
     "aucTrained": 0.57,
     "landExpert": 0.623,
-    "landTrained": 0.763,
+    "landTrained": 0.78,
     "landForest": 0.713,
     "hitExpert": 0.279,
-    "hitTrained": 0.562,
+    "hitTrained": 0.641,
     "hitForest": 0.4,
     "params": {
       "tree": {
-        "tall": 0.4,
-        "gran": 0.889,
-        "barrbland": 1,
-        "lovbarr": 0.4,
-        "triv": 0.694,
-        "adel": 0.611,
-        "fjall": 0.222,
-        "hygge": 0.022,
-        "mire": 0.054
+        "tall": 0.287,
+        "gran": 1,
+        "barrbland": 0.726,
+        "lovbarr": 0.446,
+        "triv": 0.436,
+        "adel": 0.774,
+        "fjall": 0.198,
+        "hygge": 0.02,
+        "mire": 0.048
       },
       "wet": {
         "dry": 1,
-        "wet": 0.486
+        "wet": 0.66
       },
       "soil": {
-        "sand": 1,
-        "moran": 0.667,
-        "lera": 0.726,
-        "torv": 0.974,
-        "berg": 0.978
+        "sand": 0.784,
+        "moran": 0.675,
+        "lera": 0.581,
+        "torv": 0.679,
+        "berg": 1
       },
-      "tpi": 0,
-      "south": -0.05,
+      "tpi": -0.1,
+      "south": 0,
       "openEdge": 0.05,
       "wetEdge": 0.25,
       "continuity": 0.45,
       "age": [
         20,
-        52,
+        72,
         200,
         300,
         1
@@ -131,6 +136,7 @@ export const TRAINED: Partial<Record<SpeciesId, TrainedInfo>> = {
   "svarttrumpet": {
     "used": true,
     "n": 300,
+    "extra": 0,
     "folds": 5,
     "better": 4,
     "aucExpert": 0.677,
@@ -171,6 +177,7 @@ export const TRAINED: Partial<Record<SpeciesId, TrainedInfo>> = {
   "karljohan": {
     "used": true,
     "n": 300,
+    "extra": 0,
     "folds": 5,
     "better": 5,
     "aucExpert": 0.364,
@@ -220,6 +227,7 @@ export const TRAINED: Partial<Record<SpeciesId, TrainedInfo>> = {
   "taggsvamp": {
     "used": true,
     "n": 128,
+    "extra": 0,
     "folds": 5,
     "better": 4,
     "aucExpert": 0.442,
@@ -268,6 +276,7 @@ export const TRAINED: Partial<Record<SpeciesId, TrainedInfo>> = {
   "farticka": {
     "used": false,
     "n": 300,
+    "extra": 0,
     "folds": 5,
     "better": 2,
     "aucExpert": 0.638,
@@ -283,6 +292,7 @@ export const TRAINED: Partial<Record<SpeciesId, TrainedInfo>> = {
   "smorsopp": {
     "used": true,
     "n": 300,
+    "extra": 0,
     "folds": 5,
     "better": 5,
     "aucExpert": 0.54,
@@ -331,6 +341,7 @@ export const TRAINED: Partial<Record<SpeciesId, TrainedInfo>> = {
   "blabar": {
     "used": false,
     "n": 300,
+    "extra": 0,
     "folds": 5,
     "better": 5,
     "aucExpert": 0.616,
@@ -346,6 +357,7 @@ export const TRAINED: Partial<Record<SpeciesId, TrainedInfo>> = {
   "lingon": {
     "used": true,
     "n": 300,
+    "extra": 0,
     "folds": 5,
     "better": 4,
     "aucExpert": 0.601,
@@ -395,6 +407,7 @@ export const TRAINED: Partial<Record<SpeciesId, TrainedInfo>> = {
   "hjortron": {
     "used": false,
     "n": 300,
+    "extra": 0,
     "folds": 5,
     "better": 5,
     "aucExpert": 0.804,
@@ -410,6 +423,7 @@ export const TRAINED: Partial<Record<SpeciesId, TrainedInfo>> = {
   "hallon": {
     "used": false,
     "n": 300,
+    "extra": 0,
     "folds": 5,
     "better": 5,
     "aucExpert": 0.631,
@@ -425,6 +439,7 @@ export const TRAINED: Partial<Record<SpeciesId, TrainedInfo>> = {
   "tranbar": {
     "used": false,
     "n": 300,
+    "extra": 0,
     "folds": 5,
     "better": 4,
     "aucExpert": 0.842,
@@ -440,6 +455,7 @@ export const TRAINED: Partial<Record<SpeciesId, TrainedInfo>> = {
   "smultron": {
     "used": true,
     "n": 300,
+    "extra": 0,
     "folds": 5,
     "better": 5,
     "aucExpert": 0.589,

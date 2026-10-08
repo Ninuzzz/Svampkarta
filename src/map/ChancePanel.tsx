@@ -369,9 +369,12 @@ function TrainingSummary() {
   const rows = Object.values(TRAINED).filter((t) => !!t)
   if (!rows.length) return null
   const n = rows.reduce((s, t) => s + t.n, 0)
-  const hit = rows.reduce((s, t) => s + (t.used ? t.hitTrained : t.hitExpert) * t.n, 0) / n
-  const hitExpert = rows.reduce((s, t) => s + t.hitExpert * t.n, 0) / n
-  const hitForest = rows.reduce((s, t) => s + t.hitForest * t.n, 0) / n
+  const extra = rows.reduce((s, t) => s + (t.extra ?? 0), 0)
+  // testet görs på GBIF-fynd – varje art väger lika
+  const avg = (f: (t: (typeof rows)[number]) => number) => rows.reduce((s, t) => s + f(t), 0) / rows.length
+  const hit = avg((t) => (t.used ? t.hitTrained : t.hitExpert))
+  const hitExpert = avg((t) => t.hitExpert)
+  const hitForest = avg((t) => t.hitForest)
   const trained = rows.filter((t) => t.used).length
   return (
     <div className="rounded-2xl bg-[#e4efc9] p-3 text-[13px] text-forest-800">
@@ -382,7 +385,7 @@ function TrainingSummary() {
         {Math.round(hitForest * 100)} %, slumpen 20 %.
       </p>
       <p className="mt-1 text-ink-muted">
-        {trained} av {rows.length} arter fick nya vikter. Källa: GBIF (bl.a. Artportalen){TRAINING_DATE ? `, ${TRAINING_DATE}` : ''}.
+        {trained} av {rows.length} arter fick nya vikter. Källa: GBIF (bl.a. Artportalen){extra ? ` och ${extra.toLocaleString('sv-SE')} fynd från svampkarta.se` : ''}{TRAINING_DATE ? `, ${TRAINING_DATE}` : ''}.
       </p>
     </div>
   )
