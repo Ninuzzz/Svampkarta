@@ -4,9 +4,9 @@ import type { SpeciesId } from './species'
 
 const stroke = 'stroke="#3a2a10" stroke-opacity=".55" stroke-width="1.2" stroke-linejoin="round"'
 
-// Foten är centrerad under hattens spets och börjar uppe i hatten, så att övergången inte syns
+// Symmetrisk kring x = 16: foten sitter mitt under hattens spets och börjar uppe i hatten, så att övergången inte syns
 const funnel = (cap: string, stem: string) =>
-  `<path d="M12.8 15.6h5.6c-.5 3.4-.6 6.8-.6 10.2a2.2 2.2 0 0 1-4.4 0c0-3.4-.1-6.8-.6-10.2Z" fill="${stem}" ${stroke}/><path d="M4.5 9.2c1.6-2.6 21.4-2.6 23 0-.4 1.4-1.6 2.3-3.2 3.1-2.6 1.3-5.4 2.9-6.9 5.4-.6 1-1.4 1.6-2.4 1.5-1.4-.1-2.3-1.6-3.2-2.9C10 14 4.2 12 4.5 9.2Z" fill="${cap}" ${stroke}/><path d="M8 10.2c2.6.8 5.2 1.1 8 1.1s5.4-.3 8-1.1" fill="none" stroke="#fff" stroke-opacity=".45" stroke-width="1.1" stroke-linecap="round"/>`
+  `<path d="M13.2 15.6h5.6c-.5 3.4-.6 6.8-.6 10.2a2.2 2.2 0 0 1-4.4 0c0-3.4-.1-6.8-.6-10.2Z" fill="${stem}" ${stroke}/><path d="M4.5 9.2c1.6-2.6 21.4-2.6 23 0-.4 1.5-1.7 2.5-3.3 3.3-2.7 1.3-5.3 2.8-6.6 5-.4.8-.9 1.3-1.6 1.3s-1.2-.5-1.6-1.3c-1.3-2.2-3.9-3.7-6.6-5-1.6-.8-2.9-1.8-3.3-3.3Z" fill="${cap}" ${stroke}/><path d="M8 10.2c2.6.8 5.2 1.1 8 1.1s5.4-.3 8-1.1" fill="none" stroke="#fff" stroke-opacity=".45" stroke-width="1.1" stroke-linecap="round"/>`
 
 const trumpet = (c: string) =>
   `<path d="M9.5 6.5c3.6-1.6 9.4-1.6 13 0-.6 3.6-2.6 7-3.8 10.5l-.7 9a2 2 0 0 1-4 0l-.7-9c-1.2-3.5-3.2-6.9-3.8-10.5Z" fill="${c}" ${stroke}/><ellipse cx="16" cy="6.8" rx="5.4" ry="1.4" fill="#000" fill-opacity=".35"/>`
