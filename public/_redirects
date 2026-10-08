@@ -1,0 +1,2 @@
+# SLU skogsålder 2025 (CC BY 4.0) – proxy så att webbläsaren kan läsa filen (SLU saknar CORS)
+/slu-age/*  https://gis.slu.se/data/skogsdatalabbet/SLU_skogsalder_2025/data/:splat  200

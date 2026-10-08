@@ -1,0 +1,8 @@
+# Netlify: statisk sajt byggd med Vite. Appen använder hash-routing (#/karta),
+# så inga omdirigeringsregler behövs.
+[build]
+  command = "npm run build"
+  publish = "dist"
+
+[build.environment]
+  NODE_VERSION = "22"

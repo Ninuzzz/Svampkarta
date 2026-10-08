@@ -1,0 +1,14 @@
+# Byggda filer har innehållshash i namnet och kan cachas för alltid
+/assets/*
+  Cache-Control: public, max-age=31536000, immutable
+
+/guide/*
+  Cache-Control: public, max-age=604800
+
+/img/*
+  Cache-Control: public, max-age=604800
+
+/*
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
+  Permissions-Policy: geolocation=(self), camera=(), microphone=()
