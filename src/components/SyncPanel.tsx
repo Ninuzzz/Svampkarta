@@ -11,6 +11,7 @@ export function SyncPanel() {
   const [email, setEmail] = useState('')
   const [sentTo, setSentTo] = useState<string | null>(null)
   const [code, setCode] = useState('')
+  const [codeOpen, setCodeOpen] = useState(false)
   const [busy, setBusy] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
 
@@ -159,8 +160,13 @@ export function SyncPanel() {
           }}
         >
           <p className="text-sm text-forest-900">
-            Vi har skickat ett mejl till <b>{sentTo}</b>. Tryck på länken i mejlet – eller skriv in koden här:
+            Vi har skickat ett mejl till <b>{sentTo}</b>. Öppna det på den här enheten och tryck på länken, så loggas du in.
           </p>
+          {!codeOpen ? (
+            <button type="button" className="mt-1 inline-flex min-h-11 items-center text-[13px] font-semibold text-sage-600 hover:underline" onClick={() => setCodeOpen(true)}>
+              Står det en kod i mejlet? Skriv in den i stället
+            </button>
+          ) : (
           <div className="mt-2 flex flex-col gap-2 sm:flex-row">
             <label htmlFor="sync-code" className="sr-only">
               Kod från mejlet
@@ -180,12 +186,14 @@ export function SyncPanel() {
               {busy === 'kod' ? <SpinnerGap size={18} className="animate-spin" /> : null} Logga in
             </button>
           </div>
+          )}
           <button
             type="button"
-            className="mt-2 text-[13px] font-semibold text-sage-600 hover:underline"
+            className="mt-1 inline-flex min-h-11 items-center text-[13px] font-semibold text-sage-600 hover:underline"
             onClick={() => {
               setSentTo(null)
               setCode('')
+              setCodeOpen(false)
             }}
           >
             Byt e-post eller skicka igen
