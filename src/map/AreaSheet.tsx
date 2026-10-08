@@ -167,7 +167,7 @@ export function AreaSheet({
                   Så känner du igen {SPECIES_BY_ID[main.id].name.toLowerCase()} – och vad du ska se upp för →
                 </a>
                 <div className="mt-3 h-2 overflow-hidden rounded-full bg-sand-100">
-                  <div className="h-full rounded-full bg-gradient-to-r from-amber to-ember" style={{ width: pct(main.chance) }} />
+                  <div className="h-full rounded-full bg-gradient-to-r from-chance-lo via-chance-mid to-chance-hi" style={{ width: pct(main.chance) }} />
                 </div>
                 <div className="mt-4 rounded-2xl bg-sand-100/70 p-3">
                   <p className="text-[13px] font-bold">Har du letat här?</p>

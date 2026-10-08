@@ -6,7 +6,7 @@ import { actions, useData } from '../lib/store'
 import { HOME } from '../lib/home'
 import { useRoute } from '../lib/router'
 import { getCurrentPosition, haversine } from '../lib/geo'
-import { BASEMAPS, ChanceOverlay, ForestOverlay, HILLSHADE_URL, feedbackIcon, hotspotIcon, meIcon, pickIcon, placeIcon, type Basemap } from '../map/layers'
+import { BASEMAPS, ChanceOverlay, ForestOverlay, HILLSHADE_URL, feedbackIcon, hotspotIcon, hotspotTier, meIcon, pickIcon, placeIcon, type Basemap } from '../map/layers'
 import { CLASSES, DEFAULT_FILTER, LEGEND_ITEMS, colorFor, type ForestFilter } from '../map/nmd'
 import { DualRange, KindBadge, Mushroom, RangeSlider, Segmented, Toggle, YieldDots } from '../components/ui'
 import { PlaceForm, type PlaceDraft } from '../components/PlaceForm'
@@ -48,6 +48,8 @@ interface MapPrefs {
   areas: string[]
   /** analysera allt som syns i stället för valda kommuner */
   wholeView: boolean
+  /** toppar på kartan: procent i stället för Bäst/Bra/Möjlig */
+  labelPct: boolean
 }
 
 const PREFS_KEY = 'mycel:map'
@@ -66,6 +68,7 @@ const DEFAULT_PREFS: MapPrefs = {
   minAreaHa: 2,
   areas: [HOME.kommun],
   wholeView: false,
+  labelPct: false,
 }
 
 function loadPrefs(): MapPrefs {
@@ -82,9 +85,9 @@ const FOREST_MIN_ZOOM = 9
 /** Slå ihop toppar från flera rutor: starkast först, inga två närmare än 300 m. */
 function mergeSpots(all: Hotspot[], bounds: L.LatLngBounds | null, zoom: number) {
   const sorted = all.filter((h) => !bounds || bounds.contains([h.lat, h.lng])).sort((a, b) => b.score - a.score)
-  // etiketterna är ~90 px breda: håll dem isär på skärmen, men minst 450 m i terrängen
+  // etiketterna är ~90 px breda: håll dem isär på skärmen med lite luft, men minst 450 m i terrängen
   const lat = bounds ? bounds.getCenter().lat : 60
-  const gap = Math.max(450, (90 * 156543 * Math.cos((lat * Math.PI) / 180)) / 2 ** zoom)
+  const gap = Math.max(450, (110 * 156543 * Math.cos((lat * Math.PI) / 180)) / 2 ** zoom)
   const out: Hotspot[] = []
   for (const h of sorted) {
     if (out.some((o) => haversine(o, h) < gap)) continue
@@ -342,9 +345,9 @@ export default function MapView() {
             <Marker
               key={`${h.lat},${h.lng},${h.species}`}
               position={[h.lat, h.lng]}
-              icon={hotspotIcon(h, i, isActive(h))}
-              title={`${SPECIES_BY_ID[h.species].name} – ${Math.round(h.score * 100)} % chans`}
-              alt={`${SPECIES_BY_ID[h.species].name}, ${Math.round(h.score * 100)} procent`}
+              icon={hotspotIcon(h, spots[0].score, isActive(h), prefs.labelPct)}
+              title={`${SPECIES_BY_ID[h.species].name} – ${hotspotTier(h.score, spots[0].score)} i vyn · ${Math.round(h.score * 100)} % chans`}
+              alt={`${SPECIES_BY_ID[h.species].name}, ${hotspotTier(h.score, spots[0].score)} i vyn, ${Math.round(h.score * 100)} procent chans`}
               zIndexOffset={500 - i}
               keyboard
               eventHandlers={{
@@ -443,7 +446,13 @@ export default function MapView() {
               }}
             />
             <WeatherCard weather={weather} error={weatherError} />
-            <ChanceSettings mode={prefs.chanceMode} onMode={(chanceMode) => setPrefs((p) => ({ ...p, chanceMode }))} learned={learning.count} />
+            <ChanceSettings
+              mode={prefs.chanceMode}
+              onMode={(chanceMode) => setPrefs((p) => ({ ...p, chanceMode }))}
+              labelPct={prefs.labelPct}
+              onLabelPct={(labelPct) => setPrefs((p) => ({ ...p, labelPct }))}
+              learned={learning.count}
+            />
           </>
         }
       />
@@ -466,7 +475,7 @@ export default function MapView() {
             {total > 0 && (
               <>
                 <span className="h-1.5 w-24 overflow-hidden rounded-full bg-sand-200" aria-hidden="true">
-                  <span className="block h-full rounded-full bg-gradient-to-r from-amber to-ember transition-[width] duration-300" style={{ width: `${pct}%` }} />
+                  <span className="block h-full rounded-full bg-gradient-to-r from-chance-lo via-chance-mid to-chance-hi transition-[width] duration-300" style={{ width: `${pct}%` }} />
                 </span>
                 <span className="w-11 text-right tabular text-ink-muted">{pct}&nbsp;%</span>
               </>
@@ -509,7 +518,7 @@ export default function MapView() {
             )}
             {targetLabel(prefs.target)}
             {prefs.minChance > 0 && <span className="rounded-full bg-forest-700 px-2 py-0.5 text-xs text-bone tabular">≥ {Math.round(prefs.minChance * 100)} %</span>}
-            {spots.length > 0 && <span className="rounded-full bg-[#fde3cf] px-2 py-0.5 text-xs text-[#9a3412]">{spots.length} ställen</span>}
+            {spots.length > 0 && <span className="rounded-full bg-chance-soft px-2 py-0.5 text-xs text-chance-ink">{spots.length} ställen</span>}
             {analysing && <SpinnerGap size={16} className="animate-spin text-sage-600" />}
             <CaretUp size={14} weight="bold" />
           </button>

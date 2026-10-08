@@ -56,7 +56,7 @@ const STEPS: Step[] = [
     title: 'Välj vad du letar efter',
     text: (
       <>
-        Välj en art, alla svampar eller alla bär. Kartan färgas där chansen är hög – ju mer orange, desto bättre. Etiketten <Chip>Säsong nu</Chip> visar vad som
+        Välj en art, alla svampar eller alla bär. Kartan färgas där chansen är hög – ju mer rosa, desto bättre. Etiketten <Chip>Säsong nu</Chip> visar vad som
         växer just nu.
         <span className="mt-1 block text-ink-muted lg:hidden">Tryck på knappen längst ner för att byta art.</span>
       </>
@@ -90,7 +90,7 @@ const STEPS: Step[] = [
           <span>Visa bara chans över</span>
           <Chip>40 %</Chip>
         </div>
-        <div className="mt-2 h-2 rounded-full bg-gradient-to-r from-[#ffec78] via-[#ffb81c] to-[#f04600]" />
+        <div className="mt-2 h-2 rounded-full bg-gradient-to-r from-chance-lo via-chance-mid to-chance-hi" />
       </div>
     ),
   },

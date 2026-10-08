@@ -28,7 +28,9 @@ npx -y netlify-cli@latest deploy --prod --no-build --dir dist
 
 **Analys (`src/analysis/worker.ts`, körs i en pool med upp till 4 Web Workers via `client.ts`)**
 
-- Chanskartan räknas alltid på zoom 13 (≈10 m/pixel). Andra zoomnivåer skalar samma rutor. Inställningen finns i `CHANCE_NATIVE_ZOOM` i `src/map/ChanceLayer.ts`.
+- Chanskartan räknas alltid på zoom 13 (≈10 m/pixel). Inställningen finns i `CHANCE_NATIVE_ZOOM` i `src/map/ChanceLayer.ts`.
+- Workern skickar ett *fält* per ruta (täckning, färgvärde, kärna; se `FIELD_SIZE` i `protocol.ts`), inte färdiga pixlar. `ChanceLayer` ritar varje zoomnivå 13–18 från fältet med bilinjär interpolation, så kanterna blir runda och skarpa. Färgskala (lavendel → magenta), kantbredd och genomskinlighet finns i `RAMP` och konstanterna i `ChanceLayer.ts`. Färgerna valdes för att inte förväxlas med raps på flygfotot.
+- Utzoomat (< 13) får chanslagret ett sken (`.chance-overview` i `index.css`). Topparna visar Bäst/Bra/Möjlig jämfört med den bästa i vyn (`hotspotTier` i `layers.tsx`), eller procent om inställningen "Procent på kartan" är på.
 - Kartan analyserar bara valda kommuner (`AreaPicker`, `public/kommuner/*.json`, byggs med `scripts/kommuner/build.mjs`).
 - Modellformeln finns i `src/analysis/model.ts`. Den är multiplikativ: habitat × jord × terräng × kanter × ålder × stig, och delas med träningen.
 - Artmodellerna ligger i `species.ts`. Tränade vikter finns i `trained.ts`, som genereras.

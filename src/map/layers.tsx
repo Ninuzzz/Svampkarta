@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react'
 import L from 'leaflet'
 import { useMap } from 'react-leaflet'
 import { ForestLayer } from './ForestLayer'
-import { ChanceLayer, chanceMinZoom, type ChanceProgress } from './ChanceLayer'
+import { CHANCE_NATIVE_ZOOM, ChanceLayer, chanceMinZoom, type ChanceProgress } from './ChanceLayer'
 import type { ForestFilter } from './nmd'
 import type { Kind } from '../lib/types'
 import type { ChanceOptions, Hotspot } from '../analysis/protocol'
@@ -69,6 +69,11 @@ export function ChanceOverlay({
 
   useEffect(() => {
     if (!map.getPane('chance')) map.createPane('chance').style.zIndex = '320'
+    // utzoomat är områdena bara några pixlar stora: ett sken gör dem synliga
+    const pane = map.getPane('chance')!
+    const glow = () => pane.classList.toggle('chance-overview', map.getZoom() < CHANCE_NATIVE_ZOOM)
+    glow()
+    map.on('zoomend', glow)
     const l = new ChanceLayer(opts, {
       pane: 'chance',
       minZoom: chanceMinZoom(bounds),
@@ -80,6 +85,8 @@ export function ChanceOverlay({
     l.addTo(map)
     layer.current = l
     return () => {
+      map.off('zoomend', glow)
+      pane.classList.remove('chance-overview')
       l.remove()
       layer.current = null
     }
@@ -163,12 +170,26 @@ export function placeIcon(kind: Kind, selected = false, species: SpeciesId | nul
   })
 }
 
-/** Hotspot: artikon på glasbricka med chans i procent (hittaskog-lik, med siffra som twist). */
-export function hotspotIcon(h: Hotspot, rank: number, active = false) {
-  const pct = Math.round(h.score * 100)
+export type HotspotTier = 'Bäst' | 'Bra' | 'Möjlig'
+
+/**
+ * Toppens etikett jämfört med den bästa i vyn. "36 %" ser dåligt ut fast det
+ * kan vara det bästa som finns just nu – procenten står kvar i detaljkortet.
+ */
+export function hotspotTier(score: number, best: number): HotspotTier {
+  const r = best > 0 ? score / best : 0
+  return r >= 0.9 ? 'Bäst' : r >= 0.7 ? 'Bra' : 'Möjlig'
+}
+
+const TIER_CLASS: Record<HotspotTier, string> = { Bäst: 'hs-best', Bra: 'hs-good', Möjlig: 'hs-maybe' }
+
+/** Hotspot: artikon på glasbricka med Bäst/Bra/Möjlig (jämfört med den bästa i vyn) eller chans i procent. */
+export function hotspotIcon(h: Hotspot, best: number, active = false, pct = false) {
+  const tier = hotspotTier(h.score, best)
+  const label = pct ? `${Math.round(h.score * 100)}&nbsp;%` : tier
   return L.divIcon({
     className: '',
-    html: `<div class="hs ${active ? 'hs-active' : ''} ${rank < 3 ? 'hs-top' : ''}"><span class="hs-ico">${speciesSvg(h.species, 26)}</span><b>${pct}&nbsp;%</b></div>`,
+    html: `<div class="hs ${active ? 'hs-active' : ''} ${TIER_CLASS[tier]}"><span class="hs-ico">${speciesSvg(h.species, 26)}</span><b>${label}</b></div>`,
     iconSize: [80, 44],
     iconAnchor: [22, 22],
   })

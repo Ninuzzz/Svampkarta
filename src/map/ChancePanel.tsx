@@ -7,6 +7,7 @@ import { SpeciesIcon } from '../components/SpeciesIcon'
 import { Mushroom, Toggle } from '../components/ui'
 import { Cherries } from '@phosphor-icons/react'
 import { formatDistance, haversine } from '../lib/geo'
+import { hotspotTier } from './layers'
 import { TRAINED, TRAINING_DATE } from '../analysis/trained'
 
 export function seasonState(id: SpeciesId, lat: number) {
@@ -153,7 +154,7 @@ export function MinChanceCard({
       />
       <div className="mt-1 flex items-center gap-2" aria-hidden="true">
         <span className="text-[12px] font-semibold text-ink-muted">Låg</span>
-        <span className="h-2 flex-1 rounded-full bg-gradient-to-r from-[#ffec78] via-[#ffb81c] to-[#f04600]" />
+        <span className="h-2 flex-1 rounded-full bg-gradient-to-r from-chance-lo via-chance-mid to-chance-hi" />
         <span className="text-[12px] font-semibold text-ink-muted">Hög</span>
       </div>
       <p id="min-chance-help" className={`mt-2 text-[12px] leading-snug ${tooHigh ? 'font-semibold text-ember' : 'text-ink-muted'}`}>
@@ -287,7 +288,10 @@ export function HotspotList({
                     {formatDistance(haversine(center, h))} bort · {h.areaHa < 1 ? h.areaHa.toFixed(1) : Math.round(h.areaHa)} ha
                   </span>
                 </span>
-                <span className="rounded-full bg-[#fde3cf] px-2 py-0.5 text-xs font-bold text-[#9a3412] tabular">{Math.round(h.score * 100)}&nbsp;%</span>
+                <span className="flex flex-col items-end">
+                  <span className="rounded-full bg-chance-soft px-2 py-0.5 text-xs font-bold text-chance-ink">{hotspotTier(h.score, spots[0].score)}</span>
+                  <span className="mt-0.5 text-[11px] text-ink-muted tabular">{Math.round(h.score * 100)}&nbsp;% chans</span>
+                </span>
               </button>
             </li>
           ))}
@@ -305,10 +309,14 @@ export function HotspotList({
 export function ChanceSettings({
   mode,
   onMode,
+  labelPct,
+  onLabelPct,
   learned,
 }: {
   mode: 'nu' | 'potential'
   onMode: (m: 'nu' | 'potential') => void
+  labelPct: boolean
+  onLabelPct: (v: boolean) => void
   learned: number
 }) {
   const [open, setOpen] = useState(false)
@@ -319,6 +327,12 @@ export function ChanceSettings({
         description={mode === 'nu' ? 'Visar chansen just nu' : 'Visar markens potential oavsett tid'}
         checked={mode === 'nu'}
         onChange={(v) => onMode(v ? 'nu' : 'potential')}
+      />
+      <Toggle
+        label="Procent på kartan"
+        description={labelPct ? 'Topparna visar chansen i procent' : 'Topparna visar Bäst, Bra eller Möjlig'}
+        checked={labelPct}
+        onChange={onLabelPct}
       />
       <div className="card-plain">
         <button type="button" className="-my-2 flex min-h-11 w-full items-center justify-between text-left" aria-expanded={open} onClick={() => setOpen(!open)}>

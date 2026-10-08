@@ -1,18 +1,20 @@
 import L from 'leaflet'
 import { analysis } from '../analysis/client'
-import type { ChanceOptions, Hotspot } from '../analysis/protocol'
+import { FIELD_EDGE, FIELD_SIZE, type ChanceOptions, type Hotspot } from '../analysis/protocol'
 
 const TS = 256
 const SWEDEN = L.latLngBounds([54.9, 10.4], [69.3, 24.4])
 /**
  * Chansen räknas alltid på zoom 13 (≈ 10 m per pixel, samma som skogskartan).
- * Andra zoomnivåer skalar samma rutor – inget räknas om och inget blinkar
- * bort när man zoomar.
+ * Vid inzoomning ritas samma fält om i skärmens upplösning – inget räknas om,
+ * men kanterna blir skarpa och runda i stället för trappsteg.
  */
 export const CHANCE_NATIVE_ZOOM = 13
+/** Högsta zoom som ritas egna rutor för (kartan förstorar sedan den sista). */
+const MAX_DRAW_ZOOM = 18
 /** Utzoomning med valt område: tillåt översikt om området är litet nog. */
 const AREA_TILE_BUDGET = 260
-/** Färdiga rutor som sparas när de scrollas ur bild (≈ 256 kB styck): ~18 MB på mobil, ~40 MB på dator. */
+/** Färdiga fält som sparas när de scrollas ur bild (≈ 200 kB styck): ~14 MB på mobil, ~32 MB på dator. */
 const KEEP = typeof matchMedia !== 'undefined' && matchMedia('(max-width: 768px), (pointer: coarse)').matches ? 72 : 160
 
 /** Minsta zoom där chansen visas: lägre för små valda områden, annars 12. */
@@ -30,32 +32,41 @@ export interface ChanceProgress {
   total: number
 }
 
-interface LeafletTile {
-  el: HTMLCanvasElement
+interface Field {
+  field: Uint8Array
+  hotspots: Hotspot[]
+  complete: boolean
+}
+
+interface Tile {
+  canvas: HTMLCanvasElement
   coords: L.Coords
+  /** fältet (zoom 13) som rutan ritas från */
+  parent: string
 }
 
 /**
  * Chanskartan: workern räknar fram sannolikhet per pixel för vald art och
- * hittar toppar (hotspots). Varje ruta ritas i två steg – först direkt från
+ * hittar toppar (hotspots). Varje fält räknas i två steg – först direkt från
  * skogsdatan, sedan med jordart och terräng – så att något syns snabbt.
  */
 export class ChanceLayer extends L.GridLayer {
   private opts: ChanceOptions
   private version = 0
-  private spots = new Map<string, Hotspot[]>()
-  private live = new Set<string>()
   private progress: ChanceProgress = { done: 0, total: 0 }
   onHotspots?: (spots: Hotspot[], progress: ChanceProgress) => void
   private emitTimer = 0
-  /** färdigräknade rutor (även de som scrollats ur bild) för nuvarande val */
-  private done = new Map<string, { canvas: HTMLCanvasElement; hotspots: Hotspot[] }>()
+  /** uträknade fält för nuvarande val (även de som scrollats ur bild) */
+  private fields = new Map<string, Field>()
+  private loading = new Map<string, Promise<void>>()
+  /** rutor som syns nu, per rutnyckel */
+  private tiles = new Map<string, Tile>()
 
   constructor(opts: ChanceOptions, options?: L.GridLayerOptions) {
     super({
       minZoom: 12,
       minNativeZoom: CHANCE_NATIVE_ZOOM,
-      maxNativeZoom: CHANCE_NATIVE_ZOOM,
+      maxNativeZoom: MAX_DRAW_ZOOM,
       bounds: SWEDEN,
       updateWhenIdle: true,
       updateWhenZooming: false,
@@ -64,9 +75,7 @@ export class ChanceLayer extends L.GridLayer {
     })
     this.opts = opts
     this.on('tileunload', (e) => {
-      const k = key((e as unknown as { coords: L.Coords }).coords)
-      this.live.delete(k)
-      this.spots.delete(k)
+      this.tiles.delete(key((e as unknown as { coords: L.Coords }).coords))
       this.emit()
     })
   }
@@ -77,10 +86,7 @@ export class ChanceLayer extends L.GridLayer {
     const o = this.options as L.GridLayerOptions
     o.bounds = bounds ? L.latLngBounds(bounds) : SWEDEN
     o.minZoom = chanceMinZoom(bounds)
-    this.version++
-    this.done.clear()
-    this.spots.clear()
-    this.progress = { done: 0, total: 0 }
+    this.reset()
     this.redraw()
   }
 
@@ -92,97 +98,215 @@ export class ChanceLayer extends L.GridLayer {
     return super.onRemove(map)
   }
 
-  /** Nya analysval: räkna om befintliga rutor på plats (ingen blinkning). */
+  /** Nya analysval: räkna om fälten för synliga rutor på plats (ingen blinkning). */
   setOptions(opts: ChanceOptions) {
     this.opts = opts
-    const v = ++this.version
-    this.done.clear()
-    const tiles = Object.values((this as unknown as { _tiles: Record<string, LeafletTile> })._tiles ?? {})
-    this.progress = { done: 0, total: tiles.length }
+    this.reset()
+    for (const p of new Set([...this.tiles.values()].map((t) => t.parent))) this.load(p).catch(() => {})
     this.emit()
-    for (const t of tiles) {
-      const k = key(t.coords)
-      analysis
-        .chance(t.coords.z, t.coords.x, t.coords.y, opts)
-        .then((r) => {
-          if (v !== this.version || !this.live.has(k)) return
-          paint(t.el, r.rgba)
-          this.spots.set(k, r.hotspots)
-          this.remember(k, t.el, r.hotspots)
-        })
-        .catch(() => {})
-        .finally(() => this.tick(v))
-    }
+  }
+
+  private reset() {
+    this.version++
+    this.fields.clear()
+    this.loading.clear()
+    this.progress = { done: 0, total: 0 }
   }
 
   protected createTile(coords: L.Coords, done: L.DoneCallback): HTMLElement {
-    const v = this.version
-    const k = key(coords)
-    this.live.add(k)
-
-    // redan uträknad (scrollad ur bild och tillbaka): visa direkt
-    const hit = this.done.get(k)
-    if (hit) {
-      this.spots.set(k, hit.hotspots)
-      this.emit()
-      queueMicrotask(() => done(undefined, hit.canvas))
-      return hit.canvas
-    }
-
     const canvas = document.createElement('canvas')
-    canvas.width = canvas.height = TS
-    this.progress.total++
-    this.emit()
+    // inzoomat: rita i skärmens upplösning, annars räcker en pixel per fältpunkt
+    const res = coords.z > CHANCE_NATIVE_ZOOM ? Math.min(2, Math.max(1, Math.round(window.devicePixelRatio || 1))) : 1
+    canvas.width = canvas.height = TS * res
+    const parent = parentKey(coords)
+    const tile = { canvas, coords, parent }
+    this.tiles.set(key(coords), tile)
 
-    const apply = (r: { rgba: Uint8ClampedArray; hotspots: Hotspot[] }) => {
-      if (v !== this.version || !this.live.has(k)) return false
-      paint(canvas, r.rgba)
-      this.spots.set(k, r.hotspots)
+    const hit = this.fields.get(parent)
+    if (hit) {
+      draw(tile, hit.field)
       this.emit()
-      return true
+      queueMicrotask(() => done(undefined, canvas))
+    } else {
+      this.load(parent).then(
+        () => done(undefined, canvas),
+        (e) => done(e, canvas),
+      )
     }
-
-    analysis
-      .chance(coords.z, coords.x, coords.y, this.opts, true)
-      .then(async (quick) => {
-        apply(quick)
-        done(undefined, canvas)
-        if (quick.complete) {
-          if (v === this.version) this.remember(k, canvas, quick.hotspots)
-          return
-        }
-        if (v !== this.version) return
-        const r = await analysis.chance(coords.z, coords.x, coords.y, this.opts)
-        if (apply(r)) this.remember(k, canvas, r.hotspots)
-      })
-      .catch((e) => done(e, canvas))
-      .finally(() => this.tick(v))
     return canvas
   }
 
-  private remember(k: string, canvas: HTMLCanvasElement, hotspots: Hotspot[]) {
-    this.done.delete(k)
-    this.done.set(k, { canvas, hotspots })
-    if (this.done.size > KEEP) this.done.delete(this.done.keys().next().value!)
-  }
-
-  private tick(v: number) {
-    if (v !== this.version) return
-    this.progress.done = Math.min(this.progress.total, this.progress.done + 1)
-    if (this.progress.done >= this.progress.total) this.progress = { done: 0, total: 0 }
+  /** Räkna fram ett fält (snabbt först, sedan komplett) och rita alla rutor som använder det. */
+  private load(parent: string) {
+    const running = this.loading.get(parent)
+    if (running) return running
+    const v = this.version
+    const [z, x, y] = parent.split('/').map(Number)
+    this.progress.total++
     this.emit()
+
+    const apply = (r: Field) => {
+      if (v !== this.version) return
+      this.fields.delete(parent)
+      this.fields.set(parent, r)
+      if (this.fields.size > KEEP) this.fields.delete(this.fields.keys().next().value!)
+      for (const t of this.tiles.values()) if (t.parent === parent) draw(t, r.field)
+      this.emit()
+    }
+
+    let first!: () => void
+    const firstPaint = new Promise<void>((resolve) => (first = resolve))
+    const all = analysis
+      .chance(z, x, y, this.opts, true)
+      .then(async (quick) => {
+        apply(quick)
+        first()
+        if (quick.complete || v !== this.version) return
+        apply(await analysis.chance(z, x, y, this.opts))
+      })
+      .finally(() => {
+        if (v !== this.version) return
+        this.loading.delete(parent)
+        this.progress.done = Math.min(this.progress.total, this.progress.done + 1)
+        if (this.progress.done >= this.progress.total) this.progress = { done: 0, total: 0 }
+        this.emit()
+      })
+    // rutan räknas som klar så fort något syns; misslyckas redan första steget når felet Leaflet
+    const ready = Promise.race([firstPaint, all])
+    this.loading.set(parent, ready)
+    return ready
   }
 
   private emit() {
     window.clearTimeout(this.emitTimer)
     this.emitTimer = window.setTimeout(() => {
-      this.onHotspots?.([...this.spots.values()].flat(), { ...this.progress })
+      const shown = new Set([...this.tiles.values()].map((t) => t.parent))
+      const spots: Hotspot[] = []
+      for (const p of shown) spots.push(...(this.fields.get(p)?.hotspots ?? []))
+      this.onHotspots?.(spots, { ...this.progress })
     }, 120)
   }
 }
 
-function paint(canvas: HTMLCanvasElement, rgba: Uint8ClampedArray) {
-  canvas.getContext('2d')!.putImageData(new ImageData(new Uint8ClampedArray(rgba), TS, TS), 0, 0)
+/* ------------------------------------------------------------------ */
+/*  Ritning                                                            */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Färgskala: ljus lavendel → orkidé → djup magenta. Färger som inte finns i
+ * skog, åker eller raps, så att områdena syns mot både flygfoto och karta.
+ * Fyllningen är halvgenomskinlig så att stigar och gläntor syns igenom.
+ */
+const RAMP: [number, [number, number, number, number]][] = [
+  [0, [178, 136, 255, 0.3]],
+  [0.5, [205, 78, 232, 0.42]],
+  [1, [232, 28, 140, 0.56]],
+]
+/** ytterkant och kärnans kontur */
+const EDGE_RGB = [214, 40, 160] as const
+const CORE_RGB = [255, 255, 255] as const
+/** kantens bredd i skärmpixlar */
+const EDGE_W = 1.6
+const CORE_W = 1.1
+/** hur mycket kärnan dras mot skalans starkaste färg */
+const CORE_TINT = 0.55
+const HI = [...RAMP[RAMP.length - 1][1].slice(0, 3), RAMP[RAMP.length - 1][1][3] + 0.08] as const
+/** täckningens lutning: 1-2-1-kärnan går från 64 till 191 över en fältpunkt */
+const SLOPE = 127
+
+const LUT = new Float32Array(256 * 4)
+for (let k = 0; k < 256; k++) {
+  const t = k / 255
+  let a = RAMP[0], b = RAMP[RAMP.length - 1]
+  for (let j = 0; j < RAMP.length - 1; j++)
+    if (t >= RAMP[j][0] && t <= RAMP[j + 1][0]) {
+      a = RAMP[j]
+      b = RAMP[j + 1]
+      break
+    }
+  const u = (t - a[0]) / (b[0] - a[0] || 1)
+  for (let c = 0; c < 4; c++) LUT[k * 4 + c] = a[1][c] + (b[1][c] - a[1][c]) * u
+}
+
+const clamp01 = (v: number) => (v < 0 ? 0 : v > 1 ? 1 : v)
+
+/** Rita en kartruta från sitt fält (zoom 13), förstorat med bilinjär interpolation. */
+function draw(tile: Tile, field: Uint8Array) {
+  const { canvas, coords } = tile
+  const W = canvas.width
+  const scale = 2 ** (coords.z - CHANCE_NATIVE_ZOOM)
+  // var rutan börjar i fältets rutnät (pixlar på zoom 13)
+  const ox = ((coords.x % scale) * TS) / scale
+  const oy = ((coords.y % scale) * TS) / scale
+  // skärmpixlar per fältpunkt
+  const S = (W / TS) * scale
+  const step = 1 / S
+  const F = FIELD_SIZE
+  const img = new ImageData(W, W)
+  const out = img.data
+
+  for (let py = 0; py < W; py++) {
+    // fältindex: rutpixel j har sin mittpunkt på j + 0,5 och ligger på index j + 1
+    const fy = oy + (py + 0.5) * step + 0.5
+    const y0 = Math.min(F - 2, Math.max(0, Math.floor(fy)))
+    const ty = fy - y0
+    for (let px = 0; px < W; px++) {
+      const fx = ox + (px + 0.5) * step + 0.5
+      const x0 = Math.min(F - 2, Math.max(0, Math.floor(fx)))
+      const tx = fx - x0
+      const i00 = (y0 * F + x0) * 3
+      const i10 = i00 + 3
+      const i01 = i00 + F * 3
+      const i11 = i01 + 3
+      const w00 = (1 - tx) * (1 - ty), w10 = tx * (1 - ty), w01 = (1 - tx) * ty, w11 = tx * ty
+      const cov = field[i00] * w00 + field[i10] * w10 + field[i01] * w01 + field[i11] * w11
+      // avstånd till ytterkanten i skärmpixlar (positivt inåt)
+      const d = ((cov - FIELD_EDGE) * S) / SLOPE
+      if (d < -0.5) continue
+      const inside = clamp01(d + 0.5)
+      const val = field[i00 + 1] * w00 + field[i10 + 1] * w10 + field[i01 + 1] * w01 + field[i11 + 1] * w11
+      const core = field[i00 + 2] * w00 + field[i10 + 2] * w10 + field[i01 + 2] * w01 + field[i11 + 2] * w11
+
+      const k = Math.round(val) * 4
+      let r = LUT[k], g = LUT[k + 1], b = LUT[k + 2], a = LUT[k + 3] * inside
+      // kärnan (där chansen är som högst) får en starkare rosa ton och en tunn vit kontur
+      const dcs = ((core - FIELD_EDGE) * S) / SLOPE
+      const cin = clamp01(dcs + 0.5) * CORE_TINT
+      r += (HI[0] - r) * cin
+      g += (HI[1] - g) * cin
+      b += (HI[2] - b) * cin
+      a += (HI[3] - a) * cin * inside
+      const dc = Math.abs(dcs)
+      const ac = clamp01(CORE_W / 2 + 0.5 - dc) * 0.8 * inside
+      if (ac > 0) {
+        const ao = ac + a * (1 - ac)
+        r = (CORE_RGB[0] * ac + r * a * (1 - ac)) / ao
+        g = (CORE_RGB[1] * ac + g * a * (1 - ac)) / ao
+        b = (CORE_RGB[2] * ac + b * a * (1 - ac)) / ao
+        a = ao
+      }
+      // ytterkant innanför gränsen
+      const ae = Math.min(inside, clamp01(EDGE_W + 0.5 - d)) * 0.95
+      if (ae > 0) {
+        const ao = ae + a * (1 - ae)
+        r = (EDGE_RGB[0] * ae + r * a * (1 - ae)) / ao
+        g = (EDGE_RGB[1] * ae + g * a * (1 - ae)) / ao
+        b = (EDGE_RGB[2] * ae + b * a * (1 - ae)) / ao
+        a = ao
+      }
+      const o = (py * W + px) * 4
+      out[o] = r
+      out[o + 1] = g
+      out[o + 2] = b
+      out[o + 3] = a * 255
+    }
+  }
+  canvas.getContext('2d')!.putImageData(img, 0, 0)
 }
 
 const key = (c: { x: number; y: number; z: number }) => `${c.z}/${c.x}/${c.y}`
+
+function parentKey(c: L.Coords) {
+  const s = 2 ** (c.z - CHANCE_NATIVE_ZOOM)
+  return `${CHANCE_NATIVE_ZOOM}/${Math.floor(c.x / s)}/${Math.floor(c.y / s)}`
+}

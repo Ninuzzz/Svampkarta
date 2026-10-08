@@ -16,7 +16,7 @@
  */
 import { CODE_INFO, COLOR_TO_CODE, NMD_LAYER, NMD_WMS, SGU_LAYER, SGU_WMS, SOIL_COLOR_TO_INDEX, SOIL_DETAIL, SOIL_NAMES } from './nmdcodes'
 import { SPECIES_MODELS, seasonFactor, targetSpecies, type SpeciesModel, type TreeKey } from './species'
-import type { ChanceOptions, FactorBreakdown, Hotspot, InspectResult, SpeciesResult, WorkerRequest, WorkerResponse } from './protocol'
+import { FIELD_SIZE, type ChanceOptions, type FactorBreakdown, type Hotspot, type InspectResult, type SpeciesResult, type WorkerRequest, type WorkerResponse } from './protocol'
 import { ageAt, ageGrid } from './age'
 import { TREE_KEYS, lut, product, score, type Parts, type PixelFeatures } from './model'
 import { pathGrid } from './paths'
@@ -697,26 +697,6 @@ function speciesGrids(f: Features, opts: ChanceOptions): SpeciesGrid[] {
   })
 }
 
-/* Färgskala: varm honung → bärnsten → glödande orange */
-const RAMP: [number, [number, number, number, number]][] = [
-  [0, [255, 226, 90, 0.58]],
-  [0.35, [255, 190, 30, 0.7]],
-  [0.7, [255, 128, 20, 0.8]],
-  [1, [244, 66, 8, 0.88]],
-]
-const RAMP_LUT = new Uint8ClampedArray(256 * 4)
-for (let k = 0; k < 256; k++) {
-  const t = k / 255
-  let a = RAMP[0], b = RAMP[RAMP.length - 1]
-  for (let j = 0; j < RAMP.length - 1; j++)
-    if (t >= RAMP[j][0] && t <= RAMP[j + 1][0]) {
-      a = RAMP[j]
-      b = RAMP[j + 1]
-      break
-    }
-  const u = (t - a[0]) / (b[0] - a[0] || 1)
-  for (let c = 0; c < 4; c++) RAMP_LUT[k * 4 + c] = Math.round((a[1][c] + (b[1][c] - a[1][c]) * u) * (c === 3 ? 255 : 1))
-}
 
 const SHOW = 0.36
 const LINE = 0.55
@@ -801,34 +781,29 @@ async function chanceTile(z: number, x: number, y: number, opts: ChanceOptions, 
   const areas = areaFilter(cleaned, minHa > 0 ? rpx(f, 15) : 0, minHa / cellHa)
   const keep = (j: number) => areas.region[j] === 1 && areas.size[areas.label[j]] > 0
   const shown = (j: number) => soft[j] >= LINE && softAbs[j] >= minC && keep(j)
-  const rgba = new Uint8ClampedArray(TS * TS * 4)
-  for (let y2 = 0; y2 < TS; y2++)
-    for (let x2 = 0; x2 < TS; x2++) {
-      const i = (y2 + M) * N + x2 + M
-      if (!keep(i)) continue
+  // Fältet som kartan ritar från (se FIELD_SIZE). Maskerna jämnas ut med en
+  // 3×3-kärna (1-2-1) så att kanterna kan ritas mjuka vid inzoomning.
+  const field = new Uint8Array(FIELD_SIZE * FIELD_SIZE * 3)
+  const tent = (test: (j: number) => boolean, i: number) =>
+    (test(i - N - 1) ? 1 : 0) + (test(i - N) ? 2 : 0) + (test(i - N + 1) ? 1 : 0) +
+    (test(i - 1) ? 2 : 0) + (test(i) ? 4 : 0) + (test(i + 1) ? 2 : 0) +
+    (test(i + N - 1) ? 1 : 0) + (test(i + N) ? 2 : 0) + (test(i + N + 1) ? 1 : 0)
+  for (let fy = 0; fy < FIELD_SIZE; fy++)
+    for (let fx = 0; fx < FIELD_SIZE; fx++) {
+      const i = (fy + M - 1) * N + fx + M - 1
+      const o = (fy * FIELD_SIZE + fx) * 3
+      field[o] = Math.min(255, tent(keep, i) * 16)
       // luckor som fyllts när fläckar slogs ihop får områdets lägsta färg
-      const v = Math.max(soft[i], SHOW + 0.04)
-      const o = (y2 * TS + x2) * 4
-      // kant två pixlar bred – syns även mot flygfoto
-      const edge =
-        shown(i) &&
-        (!shown(i - 1) || !shown(i + 1) || !shown(i - N) || !shown(i + N) || !shown(i - 2) || !shown(i + 2) || !shown(i - 2 * N) || !shown(i + 2 * N))
-      if (edge) {
-        rgba.set([255, 246, 214, 235], o)
-        continue
-      }
-      const k = Math.round(((v - SHOW) / (1 - SHOW)) * 255) * 4
-      rgba[o] = RAMP_LUT[k]
-      rgba[o + 1] = RAMP_LUT[k + 1]
-      rgba[o + 2] = RAMP_LUT[k + 2]
-      rgba[o + 3] = RAMP_LUT[k + 3]
+      const v = Math.min(1, Math.max(soft[i], SHOW + 0.04))
+      field[o + 1] = Math.round(((v - SHOW) / (1 - SHOW)) * 255)
+      field[o + 2] = Math.min(255, tent(shown, i) * 16)
     }
 
   const spots = hotspots(f, best, arg, grids, Math.max(0.5 * ceiling, minC), (i) => {
     const l = areas.label[i]
     return keep(i) ? areas.size[l] * cellHa : -1
   })
-  return { rgba, hotspots: spots, complete: !!f.complete }
+  return { field, hotspots: spots, complete: !!f.complete }
 }
 
 /**
@@ -1174,7 +1149,7 @@ self.onmessage = async (e: MessageEvent<WorkerRequest>) => {
       reply({ id: req.id, ok: true, result: codes }, [codes.buffer])
     } else if (req.type === 'chance') {
       const r = await chanceTile(req.z, req.x, req.y, req.opts, !!req.quick)
-      reply({ id: req.id, ok: true, result: r }, [r.rgba.buffer])
+      reply({ id: req.id, ok: true, result: r }, [r.field.buffer])
     } else if (req.type === 'inspect') {
       reply({ id: req.id, ok: true, result: await inspect(req.lat, req.lng, req.opts) })
     } else if (req.type === 'config') {

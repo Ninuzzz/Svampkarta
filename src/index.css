@@ -41,6 +41,14 @@
   --color-lingon-soft: #f3dde1;
   --color-danger: #b4382f;
 
+  /* chanskartan: lavendel → orkidé → magenta (finns inte i skog, åker eller raps) */
+  --color-chance-lo: #b288ff;
+  --color-chance-mid: #cd4ee8;
+  --color-chance-hi: #e81c8c;
+  --color-chance-soft: #fbe3f1;
+  /* text på krämvitt och chance-soft: ≥ 7:1 */
+  --color-chance-ink: #8a0e5c;
+
   --radius-glass: 1.5rem;
   --radius-glass-lg: 2rem;
 
@@ -610,15 +618,33 @@ dialog.sheet[open]::backdrop {
   border-radius: 999px;
   background: #fff;
 }
-.hs-top b {
-  color: #b4410c;
+.hs-best {
+  border-color: var(--color-chance-hi);
+  box-shadow:
+    0 0 0 2px rgb(232 28 140 / 0.25),
+    0 8px 18px -8px rgb(20 30 0 / 0.55);
+}
+.hs-best b {
+  color: var(--color-chance-ink);
+}
+.hs-good b {
+  color: #5b2a91;
+}
+.hs-maybe b {
+  color: var(--color-ink-muted);
+  font-weight: 600;
 }
 .hs-active {
   background: var(--color-forest-700);
   color: var(--color-bone);
 }
 .hs-active b {
-  color: var(--color-amber);
+  color: var(--color-bone);
+}
+
+/* Utzoomad chanskarta: områdena är bara några pixlar, skenet gör dem synliga */
+.chance-overview {
+  filter: drop-shadow(0 0 1px rgb(232 28 140 / 0.7)) drop-shadow(0 0 4px rgb(205 78 232 / 0.45));
 }
 
 .fb {

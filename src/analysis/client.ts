@@ -53,7 +53,7 @@ function call<T>(w: number, payload: Payload): Promise<T> {
 export const analysis = {
   forest: (z: number, x: number, y: number) => call<Uint8Array>(route(z, x, y), { type: 'forest', z, x, y }),
   chance: (z: number, x: number, y: number, opts: ChanceOptions, quick = false) =>
-    call<{ rgba: Uint8ClampedArray; hotspots: Hotspot[]; complete: boolean }>(route(z, x, y), { type: 'chance', z, x, y, opts, quick }),
+    call<{ field: Uint8Array; hotspots: Hotspot[]; complete: boolean }>(route(z, x, y), { type: 'chance', z, x, y, opts, quick }),
   inspect: (lat: number, lng: number, opts: ChanceOptions) => call<InspectResult>(routeLatLng(lat, lng), { type: 'inspect', lat, lng, opts }),
   signature: (lat: number, lng: number) => call<{ tree: TreeKey | null; soil: number }>(routeLatLng(lat, lng), { type: 'signature', lat, lng }),
 }

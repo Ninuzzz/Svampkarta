@@ -41,6 +41,16 @@ export interface ChanceOptions {
   areas: string[]
 }
 
+/**
+ * Chansrutan skickas som ett fält, inte som färdiga pixlar, så att kartan kan
+ * rita mjuka kanter i alla zoomnivåer. FIELD_SIZE² punkter (rutan + 1 px kant),
+ * tre kanaler per punkt: täckning (utjämnad 0–255), färgvärde 0–255 och kärna
+ * (de bästa delarna, utjämnad 0–255).
+ */
+export const FIELD_SIZE = 258
+/** Täckning över den här nivån räknas som inne i området. */
+export const FIELD_EDGE = 112
+
 export interface Hotspot {
   lat: number
   lng: number
