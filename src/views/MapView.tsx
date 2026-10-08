@@ -174,6 +174,11 @@ export default function MapView() {
   const learning = useLearning(data)
   const online = useOnline()
 
+  // källorna räcker i hörnet – utan "Leaflet"-prefixet
+  useEffect(() => {
+    map?.attributionControl?.setPrefix(false)
+  }, [map])
+
   // Starta analysen först när vädret finns (eller efter 2,5 s) – annars räknas allt om direkt
   const [weatherSettled, setWeatherSettled] = useState(false)
   useEffect(() => {
@@ -527,7 +532,7 @@ export default function MapView() {
             )}
             {targetLabel(prefs.target)}
             {prefs.minChance > 0 && <span className="rounded-full bg-forest-700 px-2 py-0.5 text-xs text-bone tabular">≥ {Math.round(prefs.minChance * 100)} %</span>}
-            {spots.length > 0 && <span className="rounded-full bg-chance-soft px-2 py-0.5 text-xs text-chance-ink">{spots.length} ställen</span>}
+            {spots.length > 0 && <span className="rounded-full bg-chance-soft px-2 py-0.5 text-xs text-chance-ink">{spots.length} {spots.length === 1 ? 'ställe' : 'ställen'}</span>}
             {analysing && <SpinnerGap size={16} className="animate-spin text-sage-600" />}
             <CaretUp size={14} weight="bold" />
           </button>

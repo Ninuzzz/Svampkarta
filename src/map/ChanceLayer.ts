@@ -238,16 +238,14 @@ const RAMP: [number, [number, number, number, number]][] = [
   [0.5, [205, 78, 232, 0.42]],
   [1, [232, 28, 140, 0.56]],
 ]
-/** ytterkant och kärnans kontur */
+/** ytterkant */
 const EDGE_RGB = [214, 40, 160] as const
 /** det markerade området: vit, bredare kant och lite starkare fyllning */
 const SEL_RGB = [255, 255, 255] as const
 const SEL_W = 2.6
 const SEL_BOOST = 0.12
-const CORE_RGB = [255, 255, 255] as const
 /** kantens bredd i skärmpixlar */
 const EDGE_W = 1.6
-const CORE_W = 1.1
 /** hur mycket kärnan dras mot skalans starkaste färg */
 const CORE_TINT = 0.55
 const HI = [...RAMP[RAMP.length - 1][1].slice(0, 3), RAMP[RAMP.length - 1][1][3] + 0.08] as const
@@ -281,6 +279,9 @@ function draw(tile: Tile, field: Uint8Array, sel?: Uint8Array) {
   // skärmpixlar per fältpunkt
   const S = (W / TS) * scale
   const step = 1 / S
+  // utzoomat (en skärmpixel per fältpunkt) blir en full kant för dominerande i små fläckar
+  const edgeW = Math.min(EDGE_W, 0.5 + 0.55 * S)
+  const edgeA = S < 2 ? 0.7 : 0.95
   const F = FIELD_SIZE
   const img = new ImageData(W, W)
   const out = img.data
@@ -312,25 +313,15 @@ function draw(tile: Tile, field: Uint8Array, sel?: Uint8Array) {
 
       const k = Math.round(val) * 4
       let r = LUT[k], g = LUT[k + 1], b = LUT[k + 2], a = (LUT[k + 3] + (picked ? SEL_BOOST : 0)) * inside
-      // kärnan (där chansen är som högst) får en starkare rosa ton och en tunn vit kontur
-      const dcs = ((core - FIELD_EDGE) * S) / SLOPE
-      const cin = clamp01(dcs + 0.5) * CORE_TINT
+      // kärnan (där chansen är som högst) får en starkare rosa ton, mjukt intonad
+      const cin = clamp01((core - 40) / 180) * CORE_TINT
       r += (HI[0] - r) * cin
       g += (HI[1] - g) * cin
       b += (HI[2] - b) * cin
       a += (HI[3] - a) * cin * inside
-      const dc = Math.abs(dcs)
-      const ac = clamp01(CORE_W / 2 + 0.5 - dc) * 0.8 * inside
-      if (ac > 0) {
-        const ao = ac + a * (1 - ac)
-        r = (CORE_RGB[0] * ac + r * a * (1 - ac)) / ao
-        g = (CORE_RGB[1] * ac + g * a * (1 - ac)) / ao
-        b = (CORE_RGB[2] * ac + b * a * (1 - ac)) / ao
-        a = ao
-      }
       // ytterkant innanför gränsen (vit och bredare runt det markerade området)
       const ec = picked ? SEL_RGB : EDGE_RGB
-      const ae = Math.min(inside, clamp01((picked ? SEL_W : EDGE_W) + 0.5 - d)) * 0.95
+      const ae = Math.min(inside, clamp01((picked ? SEL_W : edgeW) + 0.5 - d)) * (picked ? 0.95 : edgeA)
       if (ae > 0) {
         const ao = ae + a * (1 - ae)
         r = (ec[0] * ae + r * a * (1 - ae)) / ao

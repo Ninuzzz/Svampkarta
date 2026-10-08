@@ -30,7 +30,7 @@ export function AreaOutlines({
             key={`${s.id}-${i}`}
             positions={poly.map((ring) => ring.map(([lng, lat]) => [lat, lng] as [number, number]))}
             interactive={false}
-            pathOptions={{ color: '#fffbeb', weight: 2.5, opacity: 0.95, dashArray: '7 6', fill: false }}
+            pathOptions={{ color: '#fffbeb', weight: 1.5, opacity: 0.75, dashArray: '2 5', lineCap: 'round', fill: false }}
           />
         )),
       )}

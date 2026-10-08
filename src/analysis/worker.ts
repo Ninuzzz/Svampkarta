@@ -781,6 +781,8 @@ async function chanceTile(z: number, x: number, y: number, opts: ChanceOptions, 
   const areas = areaFilter(cleaned, minHa > 0 ? rpx(f, 15) : 0, minHa / cellHa)
   const keep = (j: number) => areas.region[j] === 1 && areas.size[areas.label[j]] > 0
   const shown = (j: number) => soft[j] >= LINE && softAbs[j] >= minC && keep(j)
+  // små hål (under en halv hektar) fylls när områdena ritas – ytan blir lugnare
+  const filled = fillHoles(keep, 0.5 / cellHa)
   // Fältet som kartan ritar från (se FIELD_SIZE). Maskerna jämnas ut med en
   // 3×3-kärna (1-2-1) så att kanterna kan ritas mjuka vid inzoomning.
   const field = new Uint8Array(FIELD_SIZE * FIELD_SIZE * 3)
@@ -792,7 +794,7 @@ async function chanceTile(z: number, x: number, y: number, opts: ChanceOptions, 
     for (let fx = 0; fx < FIELD_SIZE; fx++) {
       const i = (fy + M - 1) * N + fx + M - 1
       const o = (fy * FIELD_SIZE + fx) * 3
-      field[o] = Math.min(255, tent(keep, i) * 16)
+      field[o] = Math.min(255, tent((j) => filled[j] === 1, i) * 16)
       // luckor som fyllts när fläckar slogs ihop får områdets lägsta färg
       const v = Math.min(1, Math.max(soft[i], SHOW + 0.04))
       field[o + 1] = Math.round(((v - SHOW) / (1 - SHOW)) * 255)
@@ -847,6 +849,38 @@ function areaFilter(mask: Uint8Array, r: number, minPx: number) {
     size.push(count >= minPx || (border && count >= 0.4 * minPx) ? count : 0)
   }
   return { label, size, region: closed }
+}
+
+/**
+ * Mask där hål mindre än maxPx (som inte når rutans kant) räknas som inne i
+ * området. Hålen är ofta bara en tät granskog eller en glänta mitt i området.
+ */
+function fillHoles(inside: (j: number) => boolean, maxPx: number) {
+  const out = new Uint8Array(N * N)
+  for (let j = 0; j < N * N; j++) out[j] = inside(j) ? 1 : 0
+  const seen = new Uint8Array(N * N)
+  const stack: number[] = []
+  const comp: number[] = []
+  for (let s = 0; s < N * N; s++) {
+    if (out[s] || seen[s]) continue
+    comp.length = 0
+    let border = false
+    seen[s] = 1
+    stack.push(s)
+    while (stack.length) {
+      const j = stack.pop()!
+      comp.push(j)
+      const x = j % N, y = (j / N) | 0
+      if (x === 0 || y === 0 || x === N - 1 || y === N - 1) border = true
+      for (const k of [x > 0 ? j - 1 : -1, x < N - 1 ? j + 1 : -1, y > 0 ? j - N : -1, y < N - 1 ? j + N : -1])
+        if (k >= 0 && !out[k] && !seen[k]) {
+          seen[k] = 1
+          stack.push(k)
+        }
+    }
+    if (!border && comp.length < maxPx) for (const j of comp) out[j] = 1
+  }
+  return out
 }
 
 /** Kvadratisk max-/minfiltrering i två pass (separabel). */
