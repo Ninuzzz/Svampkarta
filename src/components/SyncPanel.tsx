@@ -1,6 +1,6 @@
 import { useState } from 'react'
-import { ArrowsClockwise, CheckCircle, CloudSlash, EnvelopeSimple, GoogleLogo, SignOut, SpinnerGap, WarningCircle } from '@phosphor-icons/react'
-import { ensureStarted, googleLogin, sendEmailLogin, signOut, syncAvailable, syncNow, useSync, verifyEmailCode } from '../lib/sync'
+import { ArrowsClockwise, CheckCircle, CloudSlash, EnvelopeSimple, GoogleLogo, SignOut, SpinnerGap, Trash, WarningCircle } from '@phosphor-icons/react'
+import { deleteAccount, ensureStarted, googleLogin, sendEmailLogin, signOut, syncAvailable, syncNow, useSync, verifyEmailCode } from '../lib/sync'
 
 const time = (ms: number) => new Date(ms).toLocaleTimeString('sv-SE', { hour: '2-digit', minute: '2-digit' })
 
@@ -14,6 +14,7 @@ export function SyncPanel() {
   const [codeOpen, setCodeOpen] = useState(false)
   const [busy, setBusy] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [confirmDelete, setConfirmDelete] = useState(false)
 
   if (!syncAvailable) return null
 
@@ -28,6 +29,50 @@ export function SyncPanel() {
       setBusy(null)
     }
   }
+
+  // Inloggad: radera kontot (bekräftas på plats)
+  if (sync.user && confirmDelete)
+    return (
+      <div className="rounded-2xl bg-sand-100/60 p-4 sm:p-5" role="group" aria-labelledby="delete-title">
+        <p id="delete-title" className="text-sm font-semibold text-forest-900">
+          Radera kontot?
+        </p>
+        <p className="mt-1 text-sm text-ink-muted">
+          Allt som synkats till <b>{sync.user.email ?? 'kontot'}</b> – platser, dagbok, rutter och foton – tas bort från molnet för alltid. Det som finns på den här enheten ligger kvar.
+        </p>
+        {error && (
+          <p className="mt-3 flex items-center gap-1.5 text-[13px] font-semibold text-[#9a3412]" role="alert">
+            <WarningCircle size={16} weight="fill" /> {error}
+          </p>
+        )}
+        <div className="mt-3 flex flex-wrap gap-2">
+          <button
+            type="button"
+            className="btn bg-danger text-white"
+            disabled={!!busy}
+            onClick={() =>
+              void run('radera', async () => {
+                await deleteAccount()
+                setConfirmDelete(false)
+              })
+            }
+          >
+            {busy === 'radera' ? <SpinnerGap size={18} className="animate-spin" /> : <Trash size={18} />} Ja, radera kontot
+          </button>
+          <button
+            type="button"
+            className="btn btn-ghost"
+            disabled={!!busy}
+            onClick={() => {
+              setConfirmDelete(false)
+              setError(null)
+            }}
+          >
+            Avbryt
+          </button>
+        </div>
+      </div>
+    )
 
   // Inloggad
   if (sync.user)
@@ -70,6 +115,9 @@ export function SyncPanel() {
           </button>
           <button type="button" className="btn btn-ghost" onClick={() => void signOut()}>
             <SignOut size={18} /> Logga ut
+          </button>
+          <button type="button" className="btn btn-danger" onClick={() => setConfirmDelete(true)}>
+            <Trash size={18} /> Radera konto
           </button>
         </div>
       </div>

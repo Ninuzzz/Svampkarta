@@ -85,6 +85,36 @@ export async function signOut() {
   set({ user: null, status: 'av', message: null })
 }
 
+/**
+ * Radera kontot och allt som synkats: först fotona (Storage), sedan kontot
+ * (supabase/delete-account.sql), vilket tar med alla rader. Det som finns på
+ * enheten ligger kvar och laddas upp igen om man loggar in på nytt.
+ */
+export async function deleteAccount() {
+  const user = state.user
+  if (!user) throw new Error('Du är inte inloggad.')
+  const sb = await client()
+  const bucket = sb.storage.from('photos')
+  // listan ger högst 1000 åt gången; ta bort och lista igen tills mappen är tom
+  for (let round = 0; round < 50; round++) {
+    const { data, error } = await bucket.list(user.id, { limit: 1000 })
+    if (error) throw new Error(friendly(error.message))
+    if (!data?.length) break
+    const { error: rmError } = await bucket.remove(data.map((f) => `${user.id}/${f.name}`))
+    if (rmError) throw new Error(friendly(rmError.message))
+  }
+  const { error } = await sb.rpc('delete_my_account')
+  if (error) throw new Error(/function.*does not exist|could not find the function/i.test(error.message) ? 'Radering är inte påslagen på servern än.' : friendly(error.message))
+
+  await sb.auth.signOut({ scope: 'local' }).catch(() => {})
+  try {
+    for (const k of [SYNC_USER_KEY, OWNER_KEY, metaKey(user.id), backupKey(user.id)]) localStorage.removeItem(k)
+  } catch {
+    /* ignorera */
+  }
+  set({ user: null, status: 'av', lastSync: null, message: null })
+}
+
 function friendly(msg: string) {
   if (/rate limit|too many|security purposes/i.test(msg)) return 'För många försök just nu – vänta en stund och försök igen.'
   if (/validate email|invalid.*email|email.*(invalid|format)/i.test(msg)) return 'E-postadressen ser inte rätt ut.'
