@@ -104,6 +104,7 @@ Gjort:
 - Google-inloggning är påslagen.
 - Egen SMTP via Gmail med applösenord.
 - `hardening.sql` är körd (bekräftat 2026-10-08).
+- `delete-account.sql` är körd (2026-10-08, kontrollerat: funktionen finns och nekar anonyma anrop).
 - E-postmallarna från `supabase/email/` är inlagda (bekräftat 2026-10-08).
 
 - Google-appen är publicerad (In production, 2026-10-08). Branding har startsida och länk till integritetssidan (`public/integritet.html`). Branding pekar på pages.dev (bytt 2026-10-08). Supabase Site URL och Redirect URLs är också bytta till pages.dev (2026-10-08). E-postmallarna i `supabase/email/` har den nya adressen men är inte inklistrade i Supabase igen.
