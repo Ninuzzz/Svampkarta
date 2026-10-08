@@ -21,7 +21,8 @@ npx -y netlify-cli@latest deploy --prod --no-build --dir dist
 ```
 
 - Netlify-funktionerna i `netlify/functions/` följer med automatiskt.
-- Netlify tömmer CDN-cachen vid varje deploy. Första kartladdningen efter en deploy tar cirka 13 s, därefter cirka 6 s.
+- Netlify-kontot har krediter: varje produktionsdeploy kostar krediter, och när de tar slut blockeras nya deployer (fel 403 "Account credit usage exceeded"). Samla ändringar och deploya sällan. 2026-10-08 tog krediterna slut; commit `204c158` (markering av chansområdet) är pushad men inte publicerad.
+Netlify tömmer CDN-cachen vid varje deploy. Första kartladdningen efter en deploy tar cirka 13 s, därefter cirka 6 s.
 - Git: commit med `-c user.name=Ninuzzz -c user.email=linus4091@gmail.com`, push till `origin main`.
 
 ## Arkitektur i korthet
