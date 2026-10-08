@@ -30,7 +30,8 @@
  * modellen "södra kusten" i stället för var bären växer (t.ex. att morän är
  * dåligt). För bär viktas därför markpunkterna så att de fördelar sig över
  * regionerna (breddgrad × väst/öst) som fynden gör – fynden jämförs med mark
- * i samma trakt.
+ * i samma trakt. Till bären används också extra markpunkter nära fynden
+ * (add-local-random.mjs), så att jämförelsen i varje trakt vilar på fler punkter.
  *
  *   ONLY=blabar,lingon node scripts/train/fit.ts → tränar bara de arterna,
  *   övriga behåller sina nuvarande vikter i trained.ts. Med OLD=1 mäts även
@@ -72,8 +73,12 @@ function points(prefix: string, list: { lat: number; lng: number; src?: string }
 }
 
 /** Slumpade punkter på svensk mark (jordartskartan finns bara på land i Sverige). */
-const land = points('rnd', occ.random?.points ?? []).filter((p) => p.fv[Math.floor(p.fv.length / 2)].soil > 0)
-console.log(`${land.length} slumpade punkter på svensk mark`)
+const onLand = (p: Pt) => p.fv[Math.floor(p.fv.length / 2)].soil > 0
+const land = points('rnd', occ.random?.points ?? []).filter(onLand)
+/** Extra markpunkter nära bärfynden (add-local-random.mjs), används bara för bär. */
+const landLocal = points('rnd-lokal', occ.randomLocal?.points ?? []).filter(onLand)
+console.log(`${land.length} slumpade punkter på svensk mark, ${landLocal.length} till nära bärfynden`)
+const landBerries = [...land, ...landLocal]
 
 /** AUC (Mann–Whitney) med delad rang vid lika poäng. */
 function auc(pos: number[], neg: number[]) {
@@ -282,6 +287,7 @@ for (const expert of EXPERT_MODELS) {
   if (!info) continue
   // bär: markpunkterna viktas efter var fynden finns (se överst)
   const regional = expert.kind === 'bar'
+  const landSp = regional ? landBerries : land
   const weightsFor = (p: Pt[], l: Pt[]) => (regional ? regionWeights(p, l) : undefined)
   const pres = points(expert.id, info.points)
   const bg = points(`bg-${expert.kind}`, occ.background[expert.kind].points)
@@ -305,9 +311,9 @@ for (const expert of EXPERT_MODELS) {
   const betterThanE = { G: 0, A: 0 }
   let aBeatsG = 0
   for (let k = 0; k < FOLDS; k++) {
-    const te = { p: presG.filter(fold(k, true)), b: bgG.filter(fold(k, true)), l: land.filter(fold(k, true)) }
+    const te = { p: presG.filter(fold(k, true)), b: bgG.filter(fold(k, true)), l: landSp.filter(fold(k, true)) }
     if (te.p.length < 8 || te.b.length < 20 || te.l.length < 20) continue
-    const trL = land.filter(fold(k, false))
+    const trL = landSp.filter(fold(k, false))
     const trP = presG.filter(fold(k, false))
     const teW = weightsFor(te.p, te.l)
     const models = {
@@ -369,7 +375,7 @@ for (const expert of EXPERT_MODELS) {
     val: used ? (useExtra ? 'A' : 'G') : 'E',
   }
   // Slutlig modell: tränad på alla fynd i den valda varianten
-  const final = used ? (useExtra ? fit(expert, pres, bg, land, weightsFor(pres, land)) : fit(expert, presG, bgG, land, weightsFor(presG, land))) : null
+  const final = used ? (useExtra ? fit(expert, pres, bg, landSp, weightsFor(pres, landSp)) : fit(expert, presG, bgG, landSp, weightsFor(presG, landSp))) : null
   out[expert.id] = {
     used,
     n: useExtra ? pres.length : presG.length,

@@ -72,6 +72,12 @@ npm run deploy
 
 - CSP och X-Frame-Options sätts i `public/_headers`.
 - Lägger du till en ny extern källa måste den in i CSP:n, annars blockeras den.
+- Besöksstatistik: Cloudflare Web Analytics (utan kakor). CSP:n tillåter `static.cloudflareinsights.com` (skript) och `cloudflareinsights.com` (anrop). Slås på i Cloudflare: Workers & Pages → mycel-svampkarta → Metrics → Web Analytics. Beskrivs på integritetssidan.
+
+**Tester**
+
+- `npm test` kör `node --test tests/*.test.ts` (inga extra paket; Node kör TypeScript direkt). `npm run deploy` kör testerna först.
+- Testat: synkens sammanslagning (`src/lib/merge.ts`), markeringen av chansområdet (`src/map/flood.ts`) och Bäst/Bra/Möjlig (`src/map/tier.ts`). Modulerna har inga beroenden till webbläsaren; importer mellan dem skrivs med `.ts`-ändelse så att Node hittar dem.
 
 ## Träning (`scripts/train/`)
 
@@ -114,7 +120,7 @@ Oklart eller kvar:
 
 ## Kända begränsningar och idéer
 
-- Blåbär och lingon är fortfarande svagast. Orsaken är datan: Artportalens bärfynd ligger mest i södra Sverige, nära bebyggelse och på berg eller sand, medan markpunkterna är slumpade över hela landet (där morän dominerar). Sedan 2026-10-08 viktar `fit.ts` därför markpunkterna för bär efter fyndens regioner (breddgrad × väst/öst). Morän gick då från 0,26 till 0,48 (blåbär) och från 0,23 till 0,43 (lingon). Träffsäkerheten blev ungefär oförändrad: blåbär 32 % och lingon 33 % i bästa femtedelen, mot 22 % och 16 % för "all skog". Att bli märkbart bättre kräver fler markpunkter i samma regioner som fynden (kör `extract.mjs` med fler `rnd`-punkter) eller bättre data.
+- Blåbär och lingon är fortfarande svagast. Orsaken är datan: Artportalens bärfynd ligger mest i södra Sverige, nära bebyggelse och på berg eller sand, medan markpunkterna är slumpade över hela landet (där morän dominerar). Sedan 2026-10-08 viktar `fit.ts` därför markpunkterna för bär efter fyndens regioner (breddgrad × väst/öst). Morän gick då från 0,26 till 0,48 (blåbär) och från 0,23 till 0,43 (lingon). Träffsäkerheten blev ungefär oförändrad: blåbär 32 % och lingon 33 % i bästa femtedelen, mot 22 % och 16 % för "all skog". Samma dag lades 3 000 markpunkter nära bärfynden till (`add-local-random.mjs`, nycklar `rnd-lokal:i`; 2 305 hamnade på mark), så att bären jämförs mot 2 970 punkter i stället för 665. Mätningen blev stabilare men inte bättre: blåbär 31 % och lingon 34 %. Gränsen ligger alltså i vad modellen ser, inte i antalet punkter. Nästa steg vore en ny egenskap som skiljer bra bärskog från dålig, till exempel krontäthet eller trädhöjd (SLU Skogliga grunddata eller Skogsstyrelsens laserdata).
 - Träna om bara vissa arter: `ONLY=blabar,lingon node scripts/train/fit.ts`. Lägg till `OLD=1` för att också mäta de nuvarande vikterna.
 - Lager med riktiga fynd (GBIF/svampkarta-prickar på kartan) har föreslagits men inte gjorts.
 - Användaren rapporterade att åkermark markerades. Det kunde inte återskapas för svampar. Spärren ovan är den troliga lösningen för bär. **Be användaren bekräfta** och fråga vilken art och plats det gällde.

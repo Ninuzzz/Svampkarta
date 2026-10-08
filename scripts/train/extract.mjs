@@ -26,6 +26,7 @@ const jobs = []
 for (const [id, s] of Object.entries(occ.species)) s.points.forEach((p, i) => jobs.push({ key: `${id}:${i}`, ...p }))
 for (const [kind, b] of Object.entries(occ.background)) b.points.forEach((p, i) => jobs.push({ key: `bg-${kind}:${i}`, ...p }))
 occ.random?.points.forEach((p, i) => jobs.push({ key: `rnd:${i}`, ...p }))
+occ.randomLocal?.points.forEach((p, i) => jobs.push({ key: `rnd-lokal:${i}`, ...p }))
 const block = (p) => {
   const n = 2 ** 14
   const x = Math.floor(((p.lng + 180) / 360) * n / 2)
