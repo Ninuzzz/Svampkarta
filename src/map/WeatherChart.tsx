@@ -7,7 +7,7 @@ export function WeatherChart({ weather, height = 120 }: { weather: Weather; heig
   const days = weather.days.slice(Math.max(0, ti - 13), ti + 4)
   const W = 320
   const H = height
-  const pad = { l: 26, r: 26, t: 10, b: 20 }
+  const pad = { l: 34, r: 34, t: 12, b: 22 }
   const bw = (W - pad.l - pad.r) / days.length
   const maxRain = Math.max(10, ...days.map((d) => d.rain))
   const temps = days.map((d) => d.tmean)
@@ -48,23 +48,23 @@ export function WeatherChart({ weather, height = 120 }: { weather: Weather; heig
         })}
         <path d={line} fill="none" stroke="#e0662b" strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" />
         {ti >= 0 && <line x1={pad.l + bw * Math.min(13, ti) + bw} x2={pad.l + bw * Math.min(13, ti) + bw} y1={pad.t} y2={H - pad.b} stroke="#2d4600" strokeOpacity="0.35" strokeDasharray="3 3" />}
-        <text x={4} y={pad.t + 8} fontSize="9" fill="#3b78c2" fontWeight="700">
+        <text x={4} y={pad.t + 8} fontSize="11" fill="#3b78c2" fontWeight="700">
           {Math.round(maxRain)} mm
         </text>
-        <text x={W - 4} y={pad.t + 8} fontSize="9" fill="#e0662b" fontWeight="700" textAnchor="end">
+        <text x={W - 4} y={pad.t + 8} fontSize="11" fill="#e0662b" fontWeight="700" textAnchor="end">
           {tMax}°
         </text>
-        <text x={W - 4} y={H - pad.b} fontSize="9" fill="#e0662b" fontWeight="700" textAnchor="end">
+        <text x={W - 4} y={H - pad.b} fontSize="11" fill="#e0662b" fontWeight="700" textAnchor="end">
           {tMin}°
         </text>
-        <text x={pad.l} y={H - 5} fontSize="9" fill="#535b3f">
+        <text x={pad.l} y={H - 5} fontSize="11" fill="#535b3f">
           {fmt(days[0].date)}
         </text>
-        <text x={W - pad.r} y={H - 5} fontSize="9" fill="#535b3f" textAnchor="end">
+        <text x={W - pad.r} y={H - 5} fontSize="11" fill="#535b3f" textAnchor="end">
           prognos →
         </text>
       </svg>
-      <figcaption className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-[11px] font-medium text-ink-muted">
+      <figcaption className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-[12px] font-medium text-ink-muted">
         <span className="inline-flex items-center gap-1.5">
           <span className="size-2.5 rounded-sm bg-[#3b78c2]" aria-hidden="true" /> Nederbörd
         </span>

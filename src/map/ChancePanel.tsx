@@ -32,7 +32,7 @@ export function TargetPicker({ target, onChange, lat }: { target: Target; onChan
       <div className="mb-1.5 flex items-center justify-between">
         <h3 className="text-[13px] font-bold tracking-wide text-forest-800 uppercase">{kind === 'svamp' ? 'Svamp' : 'Bär'}</h3>
       </div>
-      <ul className="grid gap-1.5" role="radiogroup" aria-label={kind === 'svamp' ? 'Svampar' : 'Bär'}>
+      <ul className="grid grid-cols-2 gap-1.5" role="radiogroup" aria-label={kind === 'svamp' ? 'Svampar' : 'Bär'}>
         <li>
           <TargetRow
             active={target === kind}
@@ -43,6 +43,7 @@ export function TargetPicker({ target, onChange, lat }: { target: Target; onChan
               </span>
             }
             label={kind === 'svamp' ? 'Alla svampar' : 'Alla bär'}
+            sub="Bästa just nu"
           />
         </li>
         {SPECIES_MODELS.filter((s) => s.kind === kind).map((s) => {
@@ -54,7 +55,8 @@ export function TargetPicker({ target, onChange, lat }: { target: Target; onChan
                 onClick={() => onChange(s.id)}
                 icon={<SpeciesIcon id={s.id} size={26} className="size-8 rounded-full bg-white" />}
                 label={s.name}
-                badge={<span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${TONE[st.tone]}`}>{st.label}</span>}
+                sub={st.label}
+                tone={TONE[st.tone]}
               />
             </li>
           )
@@ -70,21 +72,24 @@ export function TargetPicker({ target, onChange, lat }: { target: Target; onChan
   )
 }
 
-function TargetRow({ active, onClick, icon, label, badge }: { active: boolean; onClick: () => void; icon: React.ReactNode; label: string; badge?: React.ReactNode }) {
+/** En art i väljaren: ikon, namn och säsong – två per rad så att väljaren ryms överst i panelen. */
+function TargetRow({ active, onClick, icon, label, sub, tone }: { active: boolean; onClick: () => void; icon: React.ReactNode; label: string; sub: string; tone?: string }) {
   return (
     <button
       type="button"
       role="radio"
       aria-checked={active}
       onClick={onClick}
-      className={`flex min-h-12 w-full items-center gap-3 rounded-2xl border px-2.5 text-left text-sm font-semibold transition-[background-color,border-color,box-shadow] duration-200 ${
+      className={`relative flex min-h-14 w-full items-center gap-2 rounded-2xl border py-1.5 pr-2 pl-1.5 text-left transition-[background-color,border-color,box-shadow] duration-200 ${
         active ? 'border-forest-700 bg-white shadow-[0_6px_16px_-10px_rgb(20_30_0/0.6)]' : 'border-sand-200/80 bg-white/55 hover:bg-white/90'
       }`}
     >
       {icon}
-      <span className="min-w-0 flex-1 truncate">{label}</span>
-      {badge}
-      <Check size={18} weight="bold" className={active ? 'text-forest-700' : 'invisible'} aria-hidden="true" />
+      <span className="min-w-0 flex-1">
+        <span className="block truncate text-[13px] leading-tight font-semibold">{label}</span>
+        <span className={`mt-0.5 inline-block rounded-full px-1.5 text-[12px] leading-[1.35] font-bold ${tone ?? 'text-ink-muted'}`}>{sub}</span>
+      </span>
+      {active && <Check size={14} weight="bold" className="absolute top-1.5 right-1.5 text-forest-700" aria-hidden="true" />}
     </button>
   )
 }
@@ -147,9 +152,9 @@ export function MinChanceCard({
         style={{ ['--fill' as string]: `${(local / 90) * 100}%` }}
       />
       <div className="mt-1 flex items-center gap-2" aria-hidden="true">
-        <span className="text-[10px] font-semibold text-ink-muted">Låg</span>
+        <span className="text-[12px] font-semibold text-ink-muted">Låg</span>
         <span className="h-2 flex-1 rounded-full bg-gradient-to-r from-[#ffec78] via-[#ffb81c] to-[#f04600]" />
-        <span className="text-[10px] font-semibold text-ink-muted">Hög</span>
+        <span className="text-[12px] font-semibold text-ink-muted">Hög</span>
       </div>
       <p id="min-chance-help" className={`mt-2 text-[12px] leading-snug ${tooHigh ? 'font-semibold text-ember' : 'text-ink-muted'}`}>
         {tooHigh
@@ -184,7 +189,7 @@ export function MinChanceCard({
           aria-valuetext={ha === 0 ? 'Alla storlekar' : `${ha} hektar`}
           style={{ ['--fill' as string]: `${(areaIdx / (AREA_STEPS.length - 1)) * 100}%` }}
         />
-        <div className="mt-0.5 flex justify-between text-[10px] font-semibold text-ink-muted tabular" aria-hidden="true">
+        <div className="mt-0.5 flex justify-between text-[12px] font-semibold text-ink-muted tabular" aria-hidden="true">
           {AREA_STEPS.map((v) => (
             <span key={v}>{v === 0 ? 'alla' : v}</span>
           ))}
@@ -225,7 +230,7 @@ export function WeatherCard({ weather, error }: { weather: Weather | null; error
           { icon: Thermometer, label: 'Temp 10 d', value: `${weather.t10.toFixed(0)}°` },
         ].map(({ icon: I, label, value }) => (
           <div key={label} className="rounded-xl bg-sand-100/70 px-1 py-2">
-            <dt className="flex items-center justify-center gap-1 text-[10px] font-semibold text-ink-muted">
+            <dt className="flex items-center justify-center gap-1 text-[12px] font-semibold text-ink-muted">
               <I size={12} aria-hidden="true" /> {label}
             </dt>
             <dd className="tabular text-sm font-bold">{value}</dd>
@@ -278,18 +283,18 @@ export function HotspotList({
                 <SpeciesIcon id={h.species} size={24} className="size-8 rounded-full bg-white" />
                 <span className="min-w-0 flex-1">
                   <span className="block truncate text-sm font-semibold">{SPECIES_MODELS.find((s) => s.id === h.species)!.name}</span>
-                  <span className="block text-[11px] text-ink-muted tabular">
+                  <span className="block text-[12px] text-ink-muted tabular">
                     {formatDistance(haversine(center, h))} bort · {h.areaHa < 1 ? h.areaHa.toFixed(1) : Math.round(h.areaHa)} ha
                   </span>
                 </span>
-                <span className="rounded-full bg-[#fde3cf] px-2 py-0.5 text-xs font-bold text-[#9a3412] tabular">{Math.round(h.score * 100)}%</span>
+                <span className="rounded-full bg-[#fde3cf] px-2 py-0.5 text-xs font-bold text-[#9a3412] tabular">{Math.round(h.score * 100)}&nbsp;%</span>
               </button>
             </li>
           ))}
         </ol>
       )}
       {loading && spots.length > 0 && (
-        <p className="mt-2 text-[11px] text-ink-muted tabular">
+        <p className="mt-2 text-[12px] text-ink-muted tabular">
           Analyserar fler rutor… {progress.done}/{progress.total}
         </p>
       )}
@@ -316,7 +321,7 @@ export function ChanceSettings({
         onChange={(v) => onMode(v ? 'nu' : 'potential')}
       />
       <div className="card-plain">
-        <button type="button" className="flex w-full items-center justify-between text-left" aria-expanded={open} onClick={() => setOpen(!open)}>
+        <button type="button" className="-my-2 flex min-h-11 w-full items-center justify-between text-left" aria-expanded={open} onClick={() => setOpen(!open)}>
           <span className="text-sm font-bold">Så fungerar algoritmen</span>
           <CaretDown size={16} className={open ? 'rotate-180' : ''} />
         </button>

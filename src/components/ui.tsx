@@ -83,7 +83,7 @@ export function Toggle({
         role="switch"
         aria-checked={checked}
         onClick={() => onChange(!checked)}
-        className={`relative h-7 w-12 shrink-0 rounded-full transition-colors duration-300 ${
+        className={`relative h-7 w-12 shrink-0 rounded-full transition-colors duration-300 after:absolute after:-inset-x-1 after:-inset-y-2 after:content-[''] ${
           checked ? 'bg-forest-600' : 'bg-sage-300/70'
         }`}
         style={{ boxShadow: 'inset 0 1px 3px rgb(23 42 31 / 0.18)' }}
@@ -121,7 +121,7 @@ export function Segmented<T extends string>({
             role="radio"
             aria-checked={active}
             onClick={() => onChange(o.value)}
-            className={`min-h-10 rounded-[0.8rem] px-2 text-[13px] font-semibold transition-[background-color,color,box-shadow] duration-200 ${
+            className={`min-h-11 rounded-[0.8rem] px-2 text-[13px] font-semibold transition-[background-color,color,box-shadow] duration-200 ${
               active ? 'bg-white text-forest-900 shadow-[0_4px_12px_-6px_rgb(20_30_0/0.35)]' : 'text-ink-muted hover:text-forest-800'
             }`}
           >

@@ -53,11 +53,26 @@ let state: AppData = loaded ? migrateSeed(loaded) : seedData()
 if (state !== loaded) backend.save(state)
 
 const listeners = new Set<() => void>()
+/** Får veta vad som ändrades (används av synken). `remote` = ändringen kom från en annan enhet. */
+type ChangeListener = (prev: AppData, next: AppData, remote: boolean) => void
+const changeListeners = new Set<ChangeListener>()
 
-function commit(next: AppData) {
+function commit(next: AppData, remote = false) {
+  const prev = state
   state = next
   backend.save(state)
   listeners.forEach((l) => l())
+  changeListeners.forEach((l) => l(prev, next, remote))
+}
+
+export function onDataChange(l: ChangeListener) {
+  changeListeners.add(l)
+  return () => void changeListeners.delete(l)
+}
+
+/** Lägger in ändringar från en annan enhet (räknas inte som nya lokala ändringar). */
+export function applyRemote(next: AppData) {
+  commit(next, true)
 }
 
 function subscribe(listener: () => void) {

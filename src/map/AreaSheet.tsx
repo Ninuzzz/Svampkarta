@@ -177,15 +177,15 @@ export function AreaSheet({
                       : 'Säg till – algoritmen lär sig av dina rundor.'}
                   </p>
                   <div className="mt-2 grid grid-cols-2 gap-2">
-                    <button type="button" className="btn !min-h-10 border border-forest-700/60 bg-white !px-2 text-forest-800" onClick={() => onFeedback(true, main.id)}>
+                    <button type="button" className="btn !min-h-11 border border-forest-700/60 bg-white !px-2 text-forest-800" onClick={() => onFeedback(true, main.id)}>
                       <Check size={16} weight="bold" className="text-forest-600" /> Hittade
                     </button>
-                    <button type="button" className="btn !min-h-10 border border-forest-700/60 bg-white !px-2 text-forest-800" onClick={() => onFeedback(false, main.id)}>
+                    <button type="button" className="btn !min-h-11 border border-forest-700/60 bg-white !px-2 text-forest-800" onClick={() => onFeedback(false, main.id)}>
                       <Prohibit size={16} weight="bold" className="text-ember" /> Hittade inget
                     </button>
                   </div>
                 </div>
-                <button type="button" className="mt-3 flex items-center gap-1 text-[13px] font-semibold text-forest-700" aria-expanded={why} onClick={() => setWhy(!why)}>
+                <button type="button" className="mt-1 flex min-h-11 items-center gap-1 text-[13px] font-semibold text-forest-700" aria-expanded={why} onClick={() => setWhy(!why)}>
                   Varför? <CaretDown size={14} className={why ? 'rotate-180' : ''} />
                 </button>
                 {why && (
@@ -220,7 +220,7 @@ export function AreaSheet({
                       <a href={href('guide', { art: s.id })} className="flex flex-col items-center rounded-2xl p-1 text-center hover:bg-white/70" title={`Läs om ${SPECIES_BY_ID[s.id].name}`}>
                         <SpeciesIcon id={s.id} size={36} className="size-14 rounded-full bg-white shadow-[0_6px_14px_-8px_rgb(20_30_0/0.5)] ring-1 ring-sand-200" />
                         <span className="mt-1.5 text-[12px] leading-tight font-semibold">{SPECIES_BY_ID[s.id].name}</span>
-                        <span className="tabular text-[11px] text-ink-muted">{pct(s.standChance)}</span>
+                        <span className="tabular text-[12px] text-ink-muted">{pct(s.standChance)}</span>
                       </a>
                     </li>
                   ))}
@@ -239,12 +239,12 @@ export function AreaSheet({
               </div>
             )}
 
-            <p className="flex items-start gap-1.5 text-[11px] leading-relaxed text-ink-muted">
+            <p className="flex items-start gap-1.5 text-[12px] leading-relaxed text-ink-muted">
               <Info size={14} className="mt-px shrink-0" />
               Chansen räknas fram av en modell (skogstyp, jordart, terräng, omgivning, säsong, väder och dina fynd) – inte en garanti.
               <button
                 type="button"
-                className="ml-auto shrink-0 font-semibold text-forest-700 underline-offset-2 hover:underline"
+                className="-my-3 ml-auto inline-flex min-h-11 shrink-0 items-center font-semibold text-forest-700 underline-offset-2 hover:underline"
                 onClick={() => navigator.clipboard?.writeText(formatCoord(sel.lat, sel.lng)).then(() => toast({ text: 'Koordinaterna är kopierade' }))}
               >
                 Kopiera position

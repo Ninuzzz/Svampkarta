@@ -699,10 +699,10 @@ function speciesGrids(f: Features, opts: ChanceOptions): SpeciesGrid[] {
 
 /* Färgskala: varm honung → bärnsten → glödande orange */
 const RAMP: [number, [number, number, number, number]][] = [
-  [0, [255, 236, 120, 0.42]],
-  [0.35, [255, 196, 40, 0.6]],
-  [0.7, [255, 132, 26, 0.72]],
-  [1, [246, 70, 10, 0.8]],
+  [0, [255, 226, 90, 0.58]],
+  [0.35, [255, 190, 30, 0.7]],
+  [0.7, [255, 128, 20, 0.8]],
+  [1, [244, 66, 8, 0.88]],
 ]
 const RAMP_LUT = new Uint8ClampedArray(256 * 4)
 for (let k = 0; k < 256; k++) {
@@ -809,7 +809,10 @@ async function chanceTile(z: number, x: number, y: number, opts: ChanceOptions, 
       // luckor som fyllts när fläckar slogs ihop får områdets lägsta färg
       const v = Math.max(soft[i], SHOW + 0.04)
       const o = (y2 * TS + x2) * 4
-      const edge = shown(i) && (!shown(i - 1) || !shown(i + 1) || !shown(i - N) || !shown(i + N))
+      // kant två pixlar bred – syns även mot flygfoto
+      const edge =
+        shown(i) &&
+        (!shown(i - 1) || !shown(i + 1) || !shown(i - N) || !shown(i + N) || !shown(i - 2) || !shown(i + 2) || !shown(i - 2 * N) || !shown(i + 2 * N))
       if (edge) {
         rgba.set([255, 246, 214, 235], o)
         continue

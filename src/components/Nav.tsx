@@ -71,7 +71,7 @@ export function Nav({ current }: { current: View }) {
                 href={href(view)}
                 data-tour={`nav-${view}`}
                 aria-current={active ? 'page' : undefined}
-                className={`flex min-h-14 flex-col items-center justify-center gap-0.5 rounded-[1.2rem] text-[11px] font-semibold transition-[background-color,color] duration-200 ${
+                className={`flex min-h-14 flex-col items-center justify-center gap-0.5 rounded-[1.2rem] text-[12px] font-semibold transition-[background-color,color] duration-200 ${
                   active ? 'bg-forest-700 text-bone' : 'text-forest-800 active:bg-white/70'
                 }`}
               >

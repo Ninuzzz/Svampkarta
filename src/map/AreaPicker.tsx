@@ -102,7 +102,7 @@ export function AreaCard({
           role="switch"
           aria-checked={wholeView}
           onClick={() => onWholeView(!wholeView)}
-          className={`chip !min-h-8 !px-3 !text-[12px] ${wholeView ? '' : ''}`}
+          className="chip !px-3.5"
           title="Analysera allt som syns på kartan i stället för valda kommuner"
         >
           <Globe size={14} /> Hela kartvyn
@@ -116,16 +116,16 @@ export function AreaCard({
           <ul className="flex flex-wrap gap-1.5" aria-label="Valda områden">
             {chosen.map((k) => (
               <li key={k.id} className="inline-flex items-center gap-1 rounded-full bg-forest-700 py-1 pr-1 pl-3 text-[13px] font-semibold text-bone">
-                <button type="button" onClick={() => onFocus(k)} className="hover:underline" title={`Visa ${k.name}`}>
+                <button type="button" onClick={() => onFocus(k)} className="-my-1 min-h-9 hover:underline" title={`Visa ${k.name}`}>
                   {k.name}
                 </button>
                 <button
                   type="button"
                   aria-label={`Ta bort ${k.name}`}
-                  className="grid size-6 place-items-center rounded-full hover:bg-white/15"
+                  className="-my-1 grid size-9 place-items-center rounded-full hover:bg-white/15"
                   onClick={() => onChange(selected.filter((id) => id !== k.id))}
                 >
-                  <X size={12} weight="bold" />
+                  <X size={14} weight="bold" />
                 </button>
               </li>
             ))}
@@ -136,10 +136,10 @@ export function AreaCard({
 
           {neighbors.length > 0 && (
             <>
-              <p className="mt-3 mb-1.5 text-[11px] font-bold tracking-wide text-ink-muted uppercase">Närliggande</p>
+              <p className="mt-3 mb-1.5 text-[12px] font-bold tracking-wide text-ink-muted uppercase">Närliggande</p>
               <div className="flex flex-wrap gap-1.5">
                 {neighbors.map((k) => (
-                  <button key={k.id} type="button" className="chip !min-h-8 !px-2.5 !text-[12px]" onClick={() => add(k)}>
+                  <button key={k.id} type="button" className="chip !px-3" onClick={() => add(k)}>
                     <Plus size={12} weight="bold" /> {k.name}
                   </button>
                 ))}
@@ -156,7 +156,7 @@ export function AreaCard({
         <MagnifyingGlass size={16} className="pointer-events-none absolute top-1/2 left-3.5 -translate-y-1/2 text-sage-600" aria-hidden="true" />
         <input
           id="kommun-search"
-          className="field !min-h-10 !rounded-full !py-1.5 !pl-10 !text-sm"
+          className="field !min-h-11 !rounded-full !py-1.5 !pl-10 !text-sm"
           placeholder={index ? 'Lägg till valfri kommun…' : 'Laddar kommuner…'}
           value={q}
           onChange={(e) => setQ(e.target.value)}
@@ -213,10 +213,10 @@ function OfflineRow({ state, onSave, onCancel }: { state: OfflineState; onSave: 
     )
   return (
     <div className="mt-3">
-      <button type="button" className="chip !min-h-9 w-full justify-center !text-[13px]" onClick={onSave}>
+      <button type="button" className="chip !min-h-11 w-full justify-center !text-[14px]" onClick={onSave}>
         <CloudArrowDown size={16} weight="bold" /> Spara området för offline
       </button>
-      <p className="mt-1.5 text-[11px] leading-snug text-ink-muted">
+      <p className="mt-1.5 text-[12px] leading-snug text-ink-muted">
         {state.failed ? `${state.failed} delar gick inte att hämta – försök igen med bättre täckning. ` : ''}
         Då fungerar chanskartan utan täckning. Titta gärna igenom området på kartan först, så sparas även bakgrundsbilderna.
       </p>

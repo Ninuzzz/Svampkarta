@@ -112,7 +112,7 @@ const STEPS: Step[] = [
             <span className="hs-ico">
               <SpeciesIcon id={id} size={24} />
             </span>
-            <b>{p}%</b>
+            <b>{p}&nbsp;%</b>
           </span>
         ))}
       </div>
@@ -135,7 +135,7 @@ const STEPS: Step[] = [
           <b className="text-sm">Granskog</b>
           <span className="text-xs text-ink-muted">· Fuktig · Morän</span>
         </div>
-        <div className="mt-2 grid gap-1.5 text-[11px]">
+        <div className="mt-2 grid gap-1.5 text-[12px]">
           {[
             ['Skogstyp', 95],
             ['Jordart', 100],
@@ -151,8 +151,8 @@ const STEPS: Step[] = [
           ))}
         </div>
         <div className="mt-2.5 grid grid-cols-2 gap-1.5">
-          <span className="grid h-7 place-items-center rounded-full bg-forest-700 text-[11px] font-bold text-bone">Spara</span>
-          <span className="flex h-7 items-center justify-center gap-1 rounded-full border border-forest-700 text-[11px] font-bold">
+          <span className="grid h-7 place-items-center rounded-full bg-forest-700 text-[12px] font-bold text-bone">Spara</span>
+          <span className="flex h-7 items-center justify-center gap-1 rounded-full border border-forest-700 text-[12px] font-bold">
             <NavigationArrow size={11} weight="bold" className="rotate-90" /> Hitta hit
           </span>
         </div>

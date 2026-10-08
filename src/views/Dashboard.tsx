@@ -1,3 +1,4 @@
+import { SyncPanel } from '../components/SyncPanel'
 import { useRef, useState, type ReactNode } from 'react'
 import { ArrowRight, BookOpenText, Books, DownloadSimple, MapPin, Path, Plus, Question, Sparkle, UploadSimple } from '@phosphor-icons/react'
 import { actions, hasDemoData, isAppData, useData } from '../lib/store'
@@ -59,6 +60,7 @@ export default function Dashboard() {
     .filter((x) => x.season > 0.15 && x.range > 0.3)
     .sort((a, b) => b.f - a.f)
 
+  const hasStats = places.length + logs.length + routes.length > 0
   const stats = [
     { label: 'sparade platser', value: places.length },
     { label: 'loggade rundor', value: logs.length },
@@ -171,18 +173,20 @@ export default function Dashboard() {
         </div>
       </section>
 
-      {/* ---------- Siffror ---------- */}
-      <section className="relative overflow-hidden bg-forest-700 text-bone" aria-label="Din statistik">
-        <div className="absolute -top-24 -right-24 size-72 rounded-full bg-amber/15 blur-3xl" aria-hidden="true" />
-        <dl className="relative mx-auto grid max-w-6xl grid-cols-2 gap-y-8 px-4 py-12 sm:px-6 md:grid-cols-4">
-          {stats.map(({ label, value }) => (
-            <div key={label} className="flex flex-col-reverse text-center">
-              <dt className="mt-1 text-sm font-medium text-bone/75">{label}</dt>
-              <dd className="text-4xl font-bold tabular sm:text-5xl">{value}</dd>
-            </div>
-          ))}
-        </dl>
-      </section>
+      {/* ---------- Siffror (visas först när det finns något att räkna) ---------- */}
+      {hasStats && (
+        <section className="relative overflow-hidden bg-forest-700 text-bone" aria-label="Din statistik">
+          <div className="absolute -top-24 -right-24 size-72 rounded-full bg-amber/15 blur-3xl" aria-hidden="true" />
+          <dl className="relative mx-auto grid max-w-6xl grid-cols-2 gap-y-8 px-4 py-12 sm:px-6 md:grid-cols-4">
+            {stats.map(({ label, value }) => (
+              <div key={label} className="flex flex-col-reverse text-center">
+                <dt className="mt-1 text-sm font-medium text-bone/75">{label}</dt>
+                <dd className="text-4xl font-bold tabular sm:text-5xl">{value}</dd>
+              </div>
+            ))}
+          </dl>
+        </section>
+      )}
 
       <div className="mx-auto max-w-6xl px-4 pb-36 sm:px-6 lg:pb-20">
         {hasDemoData(data) && (
@@ -304,34 +308,39 @@ export default function Dashboard() {
         </section>
 
         {/* ---------- Data ---------- */}
-        <section className="card-plain mt-16 flex flex-col gap-4 !p-6 sm:flex-row sm:items-center sm:justify-between" aria-labelledby="data-h">
-          <div>
-            <h2 id="data-h" className="text-lg">
-              Din data stannar hos dig
-            </h2>
-            <p className="mt-1 max-w-lg text-sm text-ink-muted">
-              Allt sparas lokalt i den här webbläsaren – inga konton, inga prenumerationer. Ta en säkerhetskopia ibland, eller flytta den till en annan enhet.
-            </p>
+        <section className="card-plain mt-16 flex flex-col gap-5 !p-6" aria-labelledby="data-h">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <h2 id="data-h" className="text-lg">
+                Din data stannar hos dig
+              </h2>
+              <p className="mt-1 max-w-lg text-sm text-ink-muted">
+                Allt sparas i den här webbläsaren – inga prenumerationer, och inget konto behövs. Ta en säkerhetskopia ibland, eller logga in nedan om du vill synka.
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <button type="button" className="btn border border-forest-700/70 bg-white/60 text-forest-800" onClick={exportData}>
+                <DownloadSimple size={18} /> Exportera
+              </button>
+              <button type="button" className="btn border border-forest-700/70 bg-white/60 text-forest-800" onClick={() => fileRef.current?.click()}>
+                <UploadSimple size={18} /> Importera
+              </button>
+              <input
+                ref={fileRef}
+                type="file"
+                accept="application/json,.json"
+                className="sr-only"
+                tabIndex={-1}
+                aria-hidden="true"
+                onChange={(e) => {
+                  importData(e.target.files?.[0])
+                  e.target.value = ''
+                }}
+              />
+            </div>
           </div>
-          <div className="flex flex-wrap gap-2">
-            <button type="button" className="btn border border-forest-700/70 bg-white/60 text-forest-800" onClick={exportData}>
-              <DownloadSimple size={18} /> Exportera
-            </button>
-            <button type="button" className="btn border border-forest-700/70 bg-white/60 text-forest-800" onClick={() => fileRef.current?.click()}>
-              <UploadSimple size={18} /> Importera
-            </button>
-            <input
-              ref={fileRef}
-              type="file"
-              accept="application/json,.json"
-              className="sr-only"
-              tabIndex={-1}
-              aria-hidden="true"
-              onChange={(e) => {
-                importData(e.target.files?.[0])
-                e.target.value = ''
-              }}
-            />
+          <div className="border-t border-sand-200 pt-5">
+            <SyncPanel />
           </div>
         </section>
       </div>

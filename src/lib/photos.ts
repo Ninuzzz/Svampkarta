@@ -26,6 +26,13 @@ export async function savePhoto(file: File): Promise<string> {
 }
 
 export const deletePhoto = (id: string) => del(id, photoStore)
+/** Används av synken */
+export const getPhoto = (id: string) => get<Blob>(id, photoStore)
+export const putPhoto = async (id: string, blob: Blob) => {
+  await set(id, blob, photoStore)
+  // ett foto som kom från en annan enhet – visa det där det väntas
+  window.dispatchEvent(new CustomEvent('mycel:photo', { detail: id }))
+}
 
 export function usePhotoUrl(id: string | undefined) {
   const [url, setUrl] = useState<string>()
@@ -33,13 +40,18 @@ export function usePhotoUrl(id: string | undefined) {
     if (!id) return
     let objectUrl: string | undefined
     let cancelled = false
-    get<Blob>(id, photoStore).then((blob) => {
-      if (!blob || cancelled) return
-      objectUrl = URL.createObjectURL(blob)
-      setUrl(objectUrl)
-    })
+    const load = () =>
+      get<Blob>(id, photoStore).then((blob) => {
+        if (!blob || cancelled || objectUrl) return
+        objectUrl = URL.createObjectURL(blob)
+        setUrl(objectUrl)
+      })
+    void load()
+    const onPhoto = (e: Event) => (e as CustomEvent<string>).detail === id && void load()
+    window.addEventListener('mycel:photo', onPhoto)
     return () => {
       cancelled = true
+      window.removeEventListener('mycel:photo', onPhoto)
       if (objectUrl) URL.revokeObjectURL(objectUrl)
     }
   }, [id])

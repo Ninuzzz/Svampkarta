@@ -168,9 +168,9 @@ export function hotspotIcon(h: Hotspot, rank: number, active = false) {
   const pct = Math.round(h.score * 100)
   return L.divIcon({
     className: '',
-    html: `<div class="hs ${active ? 'hs-active' : ''} ${rank < 3 ? 'hs-top' : ''}"><span class="hs-ico">${speciesSvg(h.species, 26)}</span><b>${pct}%</b></div>`,
-    iconSize: [74, 40],
-    iconAnchor: [20, 20],
+    html: `<div class="hs ${active ? 'hs-active' : ''} ${rank < 3 ? 'hs-top' : ''}"><span class="hs-ico">${speciesSvg(h.species, 26)}</span><b>${pct}&nbsp;%</b></div>`,
+    iconSize: [80, 44],
+    iconAnchor: [22, 22],
   })
 }
 

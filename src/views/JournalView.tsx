@@ -37,10 +37,13 @@ export default function JournalView() {
         eyebrow="Samling"
         title="Anteckningar & bilder"
         text="Datum, väder och vad du hittade på dina rundor."
+        // tom lista: knappen finns redan i den tomma rutan nedanför
         actions={
-          <button type="button" className="btn btn-primary" onClick={() => setEditing({})}>
-            <Plus size={18} weight="bold" /> Logga runda
-          </button>
+          logs.length > 0 && (
+            <button type="button" className="btn btn-primary" onClick={() => setEditing({})}>
+              <Plus size={18} weight="bold" /> Logga runda
+            </button>
+          )
         }
       />
 

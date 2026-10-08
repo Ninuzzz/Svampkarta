@@ -421,6 +421,8 @@ export default function MapView() {
         setOpen={setPanelOpen}
         chance={
           <>
+            {/* viktigast först: vad du letar efter, var, och resultatet */}
+            <TargetPicker target={prefs.target} lat={center.lat} onChange={(target) => setPrefs((p) => ({ ...p, target }))} />
             <AreaCard
               index={kommunIndex}
               selected={prefs.areas}
@@ -432,7 +434,6 @@ export default function MapView() {
               onSaveOffline={offline.start}
               onCancelOffline={offline.cancel}
             />
-            <WeatherCard weather={weather} error={weatherError} />
             <MinChanceCard
               value={prefs.minChance}
               onChange={(minChance) => setPrefs((p) => ({ ...p, minChance }))}
@@ -454,7 +455,7 @@ export default function MapView() {
                 inspect(h.lat, h.lng)
               }}
             />
-            <TargetPicker target={prefs.target} lat={center.lat} onChange={(target) => setPrefs((p) => ({ ...p, target }))} />
+            <WeatherCard weather={weather} error={weatherError} />
             <ChanceSettings mode={prefs.chanceMode} onMode={(chanceMode) => setPrefs((p) => ({ ...p, chanceMode }))} learned={learning.count} />
           </>
         }
@@ -480,7 +481,7 @@ export default function MapView() {
                 <span className="h-1.5 w-24 overflow-hidden rounded-full bg-sand-200" aria-hidden="true">
                   <span className="block h-full rounded-full bg-gradient-to-r from-amber to-ember transition-[width] duration-300" style={{ width: `${pct}%` }} />
                 </span>
-                <span className="w-9 text-right tabular text-ink-muted">{pct}%</span>
+                <span className="w-11 text-right tabular text-ink-muted">{pct}&nbsp;%</span>
               </>
             )}
           </div>
@@ -696,7 +697,7 @@ function Panel({
             </span>
           </div>
           <DualRange value={f.leaf} onChange={(v) => setFilter({ leaf: v })} labelMin="Minsta lövandel" labelMax="Största lövandel" />
-          <div className="mt-1 flex justify-between text-[11px] font-medium text-ink-muted">
+          <div className="mt-1 flex justify-between text-[12px] font-medium text-ink-muted">
             <span>Barrskog</span>
             <span>Blandskog</span>
             <span>Lövskog</span>
@@ -800,7 +801,7 @@ function Panel({
       />
       <Toggle label="Mina platser" checked={prefs.showPlaces} onChange={(showPlaces) => setPrefs((p) => ({ ...p, showPlaces }))} />
       <Toggle label="Mina rutter" checked={prefs.showRoutes} onChange={(showRoutes) => setPrefs((p) => ({ ...p, showRoutes }))} />
-      <p className="text-[11px] leading-relaxed text-ink-muted">
+      <p className="text-[12px] leading-relaxed text-ink-muted">
         Data: NMD 2023 (Naturvårdsverket), Jordarter (SGU), SLU skogsålder 2025 (CC BY 4.0), fynd från GBIF/Artportalen, Terrain Tiles (AWS), Open-Meteo, OpenStreetMap, Esri. Allt öppet och gratis.
       </p>
     </Section>
@@ -810,7 +811,7 @@ function Panel({
     <div className="flex items-center justify-between gap-3">
       <h2 className="flex items-center gap-1 text-lg font-bold">
         {prefs.tab === 'chans' ? 'Hitta svamp & bär' : 'Filtrera skogar'}
-        <button type="button" onClick={tour.start} className="icon-btn !size-8 text-sage-600" aria-label="Visa guiden" title="Visa guiden">
+        <button type="button" onClick={tour.start} className="icon-btn text-sage-600" aria-label="Visa guiden" title="Visa guiden">
           <Question size={18} />
         </button>
       </h2>

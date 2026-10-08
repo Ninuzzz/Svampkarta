@@ -43,10 +43,13 @@ export default function PlacesView() {
         eyebrow="Samling"
         title="Mina platser"
         text="Dina hemliga svamp- och bärställen med exakta koordinater."
+        // tom lista: knappen finns redan i den tomma rutan nedanför
         actions={
-          <button type="button" className="btn btn-primary" onClick={() => setDraft({})}>
-            <Plus size={18} weight="bold" /> Ny plats
-          </button>
+          places.length > 0 && (
+            <button type="button" className="btn btn-primary" onClick={() => setDraft({})}>
+              <Plus size={18} weight="bold" /> Ny plats
+            </button>
+          )
         }
       />
 

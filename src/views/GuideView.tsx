@@ -40,7 +40,7 @@ function Photo({ imgKey, alt, className = '', credit = true }: { imgKey?: string
     <figure className={`relative overflow-hidden bg-sand-100 ${className}`}>
       <img src={img.src} alt={alt} loading="lazy" decoding="async" className="size-full object-cover" onError={() => setFailed(true)} />
       {credit && (
-        <figcaption className="absolute right-1.5 bottom-1.5 max-w-[90%] truncate rounded-full bg-black/45 px-2 py-0.5 text-[10px] text-white backdrop-blur">
+        <figcaption className="absolute right-1.5 bottom-1.5 max-w-[90%] truncate rounded-full bg-black/45 px-2 py-0.5 text-[12px] text-white backdrop-blur">
           <a href={img.page} target="_blank" rel="noopener noreferrer" className="hover:underline">
             Foto: {img.artist} · {img.license}
           </a>
@@ -135,10 +135,10 @@ function Overview() {
                     </div>
                     <p className="mt-3 line-clamp-2 text-sm text-forest-900">{g.intro}</p>
                     <div className="mt-auto flex flex-wrap gap-1.5 pt-3">
-                      <span className={`rounded-full px-2 py-0.5 text-[11px] font-bold ${SEASON_STYLE[st.tone]}`}>{st.label}</span>
-                      <span className="rounded-full bg-sand-100 px-2 py-0.5 text-[11px] font-bold text-forest-800">{DIFFICULTY_LABEL[g.difficulty]}</span>
+                      <span className={`rounded-full px-2 py-0.5 text-[12px] font-bold ${SEASON_STYLE[st.tone]}`}>{st.label}</span>
+                      <span className="rounded-full bg-sand-100 px-2 py-0.5 text-[12px] font-bold text-forest-800">{DIFFICULTY_LABEL[g.difficulty]}</span>
                       {w && (
-                        <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-bold ${DANGER_STYLE[w]}`}>
+                        <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[12px] font-bold ${DANGER_STYLE[w]}`}>
                           <WarningOctagon size={12} weight="fill" /> {w === 'dodlig' ? 'Dödlig förväxling finns' : 'Giftig förväxling finns'}
                         </span>
                       )}
@@ -287,7 +287,7 @@ function LookAlikeCard({ l }: { l: LookAlike }) {
 
 function DangerBadge({ danger }: { danger: Danger }) {
   return (
-    <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-bold ${DANGER_STYLE[danger]}`}>
+    <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[12px] font-bold ${DANGER_STYLE[danger]}`}>
       {(danger === 'dodlig' || danger === 'giftig') && <WarningOctagon size={12} weight="fill" />}
       {DANGER_LABEL[danger]}
     </span>
