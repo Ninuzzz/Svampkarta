@@ -106,7 +106,7 @@ Gjort:
 - `hardening.sql` är körd (bekräftat 2026-10-08).
 - E-postmallarna från `supabase/email/` är inlagda (bekräftat 2026-10-08).
 
-- Google-appen är publicerad (In production, 2026-10-08). Branding har startsida och länk till integritetssidan (`public/integritet.html`). Efter flytten måste adresserna där och i Supabase (Site URL, Redirect URLs) bytas till pages.dev.
+- Google-appen är publicerad (In production, 2026-10-08). Branding har startsida och länk till integritetssidan (`public/integritet.html`). Branding pekar på pages.dev (bytt 2026-10-08). Kontrollera att Supabase Site URL och Redirect URLs också är bytta till pages.dev.
 
 Oklart eller kvar:
 - Synken är testad av användaren med ett riktigt Google-konto på två enheter (2026-10-08).
