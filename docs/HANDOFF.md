@@ -102,8 +102,9 @@ Gjort:
 - `hardening.sql` är körd (bekräftat 2026-10-08).
 - E-postmallarna från `supabase/email/` är inlagda (bekräftat 2026-10-08).
 
+- Google-appen är publicerad (In production, 2026-10-08). Branding har startsida och länk till `public/integritet.html`.
+
 Oklart eller kvar:
-- Användaren vet inte om Google-appen står i testläge. Står den det måste användaren vara testanvändare eller publicera appen.
 - **Synken är inte testad med ett riktigt konto.** Den är verifierad med typkontroll, granskning och genomläsning. Be användaren testa på två enheter.
 
 ## Kända begränsningar och idéer
