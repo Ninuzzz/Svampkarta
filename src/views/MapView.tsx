@@ -131,6 +131,8 @@ export default function MapView() {
   const [bounds, setBounds] = useState<L.LatLngBounds | null>(null)
   const [panelOpen, setPanelOpen] = useState(false)
   const [area, setArea] = useState<AreaSelection | null>(null)
+  /** storleken på det markerade chansområdet (ha), null om man klickat utanför */
+  const [chanceHa, setChanceHa] = useState<number | null>(null)
   const [areaPlace, setAreaPlace] = useState<string | null>(null)
   const [selected, setSelected] = useState<Place | null>(null)
   const [me, setMe] = useState<LatLng | null>(null)
@@ -319,12 +321,19 @@ export default function MapView() {
         )}
         {showForest && <ForestOverlay filter={chanceTab ? { ...prefs.filter, opacity: Math.min(prefs.filter.opacity, 0.35) } : prefs.filter} />}
         {chanceTab && weatherSettled && (
-          <ChanceOverlay opts={chanceOpts} bounds={areaBounds} onHotspots={(s, progress) => setRawSpots({ spots: s, progress })} />
+          <ChanceOverlay
+            opts={chanceOpts}
+            bounds={areaBounds}
+            onHotspots={(s, progress) => setRawSpots({ spots: s, progress })}
+            selected={area ? { lat: area.lat, lng: area.lng } : null}
+            onSelection={setChanceHa}
+          />
         )}
         {chanceTab && !prefs.wholeView && kommunIndex && <AreaOutlines index={kommunIndex} selected={prefs.areas} onAdd={addArea} />}
 
         <Pane name="stand" style={{ zIndex: 340 }}>
-          {standUrl && area?.result?.stand && (
+          {/* på chansfliken markeras chansområdet i stället (se ChanceLayer) */}
+          {!chanceTab && standUrl && area?.result?.stand && (
             <ImageOverlay
               url={standUrl}
               bounds={[
@@ -532,6 +541,7 @@ export default function MapView() {
           {area && (
             <AreaSheet
               sel={area}
+              chanceHa={chanceTab ? chanceHa : undefined}
               target={prefs.target}
               weather={weather}
               place={areaPlace}

@@ -36,7 +36,10 @@ const MULT = new Set<keyof FactorBreakdown>(['terrain', 'edges', 'path', 'learni
 /** Rader som bara visas när de faktiskt påverkar */
 const OPTIONAL = new Set<keyof FactorBreakdown>(['path', 'learning', 'age'])
 
-function describe(r: InspectResult) {
+/** Storlek i hektar: en decimal under 1 ha, annars heltal. */
+const ha = (v: number) => `${v < 1 ? v.toFixed(1) : Math.round(v)} ha`
+
+function describe(r: InspectResult, chanceHa?: number | null) {
   const ci = CODE_INFO[r.code]
   const parts: string[] = []
   const name = r.label.replace(/ på (fastmark|våtmark)/, '')
@@ -52,7 +55,9 @@ function describe(r: InspectResult) {
   let s = parts.join(' ') + '.'
   if (r.forestAge) s += ` Skogen är ungefär ${r.forestAge} år${r.forestAge >= 80 ? ' eller äldre' : ''}.`
   if (r.aspect && r.slope && r.slope > 4) s += ` Sluttar mot ${r.aspect}.`
-  s += ` Området är ungefär ${r.standHa < 1 ? r.standHa.toFixed(1) : Math.round(r.standHa)} ha.`
+  if (chanceHa) s += ` Det markerade chansområdet är ungefär ${ha(chanceHa)}.`
+  else if (chanceHa === null) s += ' Platsen ligger utanför de markerade chansområdena.'
+  else s += ` Området är ungefär ${ha(r.standHa)}.`
   return s
 }
 
@@ -67,8 +72,11 @@ export function AreaSheet({
   onSave,
   feedbackNear,
   onFeedback,
+  chanceHa,
 }: {
   sel: AreaSelection
+  /** chansfliken: det markerade områdets storlek, null utanför områdena (undefined = skogsfliken) */
+  chanceHa?: number | null
   target: Target
   weather: Weather | null
   place: string | null
@@ -133,7 +141,7 @@ export function AreaSheet({
               <h3 className="card-title">Information</h3>
               <ul className="flex flex-wrap gap-1.5">
                 {[
-                  `${r.standHa < 1 ? r.standHa.toFixed(1) : Math.round(r.standHa)} ha`,
+                  chanceHa ? `${ha(chanceHa)} chansområde` : chanceHa === undefined ? ha(r.standHa) : null,
                   r.soilGroup ? r.soilName : null,
                   r.forestAge ? `≈ ${r.forestAge} år` : null,
                   r.elevation != null ? `${r.elevation} m ö.h.` : null,
@@ -149,7 +157,7 @@ export function AreaSheet({
                     </li>
                   ))}
               </ul>
-              <p className="mt-3 text-sm leading-relaxed text-forest-900">{describe(r)}</p>
+              <p className="mt-3 text-sm leading-relaxed text-forest-900">{describe(r, chanceHa)}</p>
             </div>
 
             {/* Chans för valt mål */}

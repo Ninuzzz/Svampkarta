@@ -54,11 +54,17 @@ export function ChanceOverlay({
   opts,
   bounds,
   onHotspots,
+  selected,
+  onSelection,
 }: {
   opts: ChanceOptions
   /** begränsa analysen till valda områden */
   bounds: [[number, number], [number, number]] | null
   onHotspots: (h: Hotspot[], progress: ChanceProgress) => void
+  /** punkten man klickat på: området runt den markeras */
+  selected: { lat: number; lng: number } | null
+  /** det markerade områdets storlek (ha), null utanför områdena */
+  onSelection: (ha: number | null) => void
 }) {
   const map = useMap()
   const layer = useRef<ChanceLayer | null>(null)
@@ -66,6 +72,8 @@ export function ChanceOverlay({
   const boundsKey = JSON.stringify(bounds)
   const cb = useRef(onHotspots)
   cb.current = onHotspots
+  const selCb = useRef(onSelection)
+  selCb.current = onSelection
 
   useEffect(() => {
     if (!map.getPane('chance')) map.createPane('chance').style.zIndex = '320'
@@ -82,6 +90,7 @@ export function ChanceOverlay({
         'Jordarter &copy; <a href="https://www.sgu.se">SGU</a> · <a href="https://gis.slu.se/data/skogsdatalabbet/SLU_skogsalder_2025/">SLU skogsålder 2025</a> · Stigar &copy; OpenStreetMap/OpenFreeMap · Höjd: Terrain Tiles (AWS) · Väder: <a href="https://open-meteo.com">Open-Meteo</a>',
     })
     l.onHotspots = (h, progress) => cb.current(h, progress)
+    l.onSelection = (ha) => selCb.current(ha)
     l.addTo(map)
     layer.current = l
     return () => {
@@ -119,6 +128,10 @@ export function ChanceOverlay({
     } else l.setOptions(opts)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [optsKey, boundsKey])
+
+  useEffect(() => {
+    layer.current?.select(selected)
+  }, [selected?.lat, selected?.lng]) // eslint-disable-line react-hooks/exhaustive-deps
 
   return null
 }

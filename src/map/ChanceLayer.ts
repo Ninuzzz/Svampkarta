@@ -61,6 +61,12 @@ export class ChanceLayer extends L.GridLayer {
   private loading = new Map<string, Promise<void>>()
   /** rutor som syns nu, per rutnyckel */
   private tiles = new Map<string, Tile>()
+  /** markerat område (det man klickat i), per fält: 2 = inne, 1 = kantzon */
+  private selection = new Map<string, Uint8Array>()
+  private selPoint: { lat: number; lng: number } | null = null
+  private selTimer = 0
+  /** markeringens storlek i hektar, eller null om man klickat utanför områdena */
+  onSelection?: (ha: number | null) => void
 
   constructor(opts: ChanceOptions, options?: L.GridLayerOptions) {
     super({
@@ -93,7 +99,9 @@ export class ChanceLayer extends L.GridLayer {
   /** Ett borttaget lager får inte skicka fler (tomma) uppdateringar. */
   onRemove(map: L.Map) {
     window.clearTimeout(this.emitTimer)
+    window.clearTimeout(this.selTimer)
     this.onHotspots = undefined
+    this.onSelection = undefined
     this.version++
     return super.onRemove(map)
   }
@@ -110,7 +118,30 @@ export class ChanceLayer extends L.GridLayer {
     this.version++
     this.fields.clear()
     this.loading.clear()
+    this.selection.clear()
     this.progress = { done: 0, total: 0 }
+  }
+
+  /**
+   * Markera det sammanhängande området som punkten ligger i (null = ingen
+   * markering). Räknas om när fälten blir klara eller valen ändras.
+   */
+  select(point: { lat: number; lng: number } | null) {
+    this.selPoint = point
+    this.reselect()
+  }
+
+  private reselect() {
+    window.clearTimeout(this.selTimer)
+    const before = new Set(this.selection.keys())
+    const { mask, ha } = this.selPoint ? floodArea(this.fields, this.selPoint) : { mask: new Map<string, Uint8Array>(), ha: null }
+    this.selection = mask
+    for (const t of this.tiles.values()) {
+      if (!before.has(t.parent) && !mask.has(t.parent)) continue
+      const f = this.fields.get(t.parent)
+      if (f) draw(t, f.field, mask.get(t.parent))
+    }
+    this.onSelection?.(ha)
   }
 
   protected createTile(coords: L.Coords, done: L.DoneCallback): HTMLElement {
@@ -124,7 +155,7 @@ export class ChanceLayer extends L.GridLayer {
 
     const hit = this.fields.get(parent)
     if (hit) {
-      draw(tile, hit.field)
+      draw(tile, hit.field, this.selection.get(parent))
       this.emit()
       queueMicrotask(() => done(undefined, canvas))
     } else {
@@ -150,7 +181,12 @@ export class ChanceLayer extends L.GridLayer {
       this.fields.delete(parent)
       this.fields.set(parent, r)
       if (this.fields.size > KEEP) this.fields.delete(this.fields.keys().next().value!)
-      for (const t of this.tiles.values()) if (t.parent === parent) draw(t, r.field)
+      for (const t of this.tiles.values()) if (t.parent === parent) draw(t, r.field, this.selection.get(parent))
+      // nya data kan ändra (eller fullborda) det markerade området
+      if (this.selPoint) {
+        window.clearTimeout(this.selTimer)
+        this.selTimer = window.setTimeout(() => this.reselect(), 80)
+      }
       this.emit()
     }
 
@@ -204,6 +240,10 @@ const RAMP: [number, [number, number, number, number]][] = [
 ]
 /** ytterkant och kärnans kontur */
 const EDGE_RGB = [214, 40, 160] as const
+/** det markerade området: vit, bredare kant och lite starkare fyllning */
+const SEL_RGB = [255, 255, 255] as const
+const SEL_W = 2.6
+const SEL_BOOST = 0.12
 const CORE_RGB = [255, 255, 255] as const
 /** kantens bredd i skärmpixlar */
 const EDGE_W = 1.6
@@ -231,7 +271,7 @@ for (let k = 0; k < 256; k++) {
 const clamp01 = (v: number) => (v < 0 ? 0 : v > 1 ? 1 : v)
 
 /** Rita en kartruta från sitt fält (zoom 13), förstorat med bilinjär interpolation. */
-function draw(tile: Tile, field: Uint8Array) {
+function draw(tile: Tile, field: Uint8Array, sel?: Uint8Array) {
   const { canvas, coords } = tile
   const W = canvas.width
   const scale = 2 ** (coords.z - CHANCE_NATIVE_ZOOM)
@@ -267,8 +307,11 @@ function draw(tile: Tile, field: Uint8Array) {
       const val = field[i00 + 1] * w00 + field[i10 + 1] * w10 + field[i01 + 1] * w01 + field[i11 + 1] * w11
       const core = field[i00 + 2] * w00 + field[i10 + 2] * w10 + field[i01 + 2] * w01 + field[i11 + 2] * w11
 
+      // markerat? närmaste fältpunkt (index j ↔ rutpixel j − 1)
+      const picked = !!sel && sel[(Math.min(TS - 1, Math.max(0, Math.round(fy) - 1)) << 8) | Math.min(TS - 1, Math.max(0, Math.round(fx) - 1))] > 0
+
       const k = Math.round(val) * 4
-      let r = LUT[k], g = LUT[k + 1], b = LUT[k + 2], a = LUT[k + 3] * inside
+      let r = LUT[k], g = LUT[k + 1], b = LUT[k + 2], a = (LUT[k + 3] + (picked ? SEL_BOOST : 0)) * inside
       // kärnan (där chansen är som högst) får en starkare rosa ton och en tunn vit kontur
       const dcs = ((core - FIELD_EDGE) * S) / SLOPE
       const cin = clamp01(dcs + 0.5) * CORE_TINT
@@ -285,13 +328,14 @@ function draw(tile: Tile, field: Uint8Array) {
         b = (CORE_RGB[2] * ac + b * a * (1 - ac)) / ao
         a = ao
       }
-      // ytterkant innanför gränsen
-      const ae = Math.min(inside, clamp01(EDGE_W + 0.5 - d)) * 0.95
+      // ytterkant innanför gränsen (vit och bredare runt det markerade området)
+      const ec = picked ? SEL_RGB : EDGE_RGB
+      const ae = Math.min(inside, clamp01((picked ? SEL_W : EDGE_W) + 0.5 - d)) * 0.95
       if (ae > 0) {
         const ao = ae + a * (1 - ae)
-        r = (EDGE_RGB[0] * ae + r * a * (1 - ae)) / ao
-        g = (EDGE_RGB[1] * ae + g * a * (1 - ae)) / ao
-        b = (EDGE_RGB[2] * ae + b * a * (1 - ae)) / ao
+        r = (ec[0] * ae + r * a * (1 - ae)) / ao
+        g = (ec[1] * ae + g * a * (1 - ae)) / ao
+        b = (ec[2] * ae + b * a * (1 - ae)) / ao
         a = ao
       }
       const o = (py * W + px) * 4
@@ -309,4 +353,65 @@ const key = (c: { x: number; y: number; z: number }) => `${c.z}/${c.x}/${c.y}`
 function parentKey(c: L.Coords) {
   const s = 2 ** (c.z - CHANCE_NATIVE_ZOOM)
   return `${CHANCE_NATIVE_ZOOM}/${Math.floor(c.x / s)}/${Math.floor(c.y / s)}`
+}
+
+/* ------------------------------------------------------------------ */
+/*  Markerat område                                                    */
+/* ------------------------------------------------------------------ */
+
+/** Högst så här många fältpunkter (≈ 10 × 10 m) i ett markerat område, ≈ 200 km². */
+const FLOOD_MAX = 2_000_000
+
+/**
+ * Sammanhängande yta (täckning över kanten) runt punkten, över alla
+ * uträknade fält. Varje fält får en mask: 2 = inne, 1 = en punkt utanför
+ * (så att den utjämnade kanten också ritas som markerad).
+ */
+function floodArea(fields: Map<string, Field>, p: { lat: number; lng: number }) {
+  const z = CHANCE_NATIVE_ZOOM
+  const W = 2 ** z * TS
+  const gx0 = Math.floor(((p.lng + 180) / 360) * W)
+  const gy0 = Math.floor(((1 - Math.log(Math.tan((p.lat * Math.PI) / 180) + 1 / Math.cos((p.lat * Math.PI) / 180)) / Math.PI) / 2) * W)
+  const mask = new Map<string, Uint8Array>()
+  const F = FIELD_SIZE
+
+  const fieldAt = (gx: number, gy: number) => fields.get(`${z}/${gx >> 8}/${gy >> 8}`)?.field
+  const inside = (gx: number, gy: number) => {
+    const f = fieldAt(gx, gy)
+    return !!f && f[(((gy & 255) + 1) * F + (gx & 255) + 1) * 3] >= FIELD_EDGE
+  }
+  const maskAt = (gx: number, gy: number) => {
+    const k = `${z}/${gx >> 8}/${gy >> 8}`
+    let m = mask.get(k)
+    if (!m) mask.set(k, (m = new Uint8Array(TS * TS)))
+    return m
+  }
+  const idx = (gx: number, gy: number) => ((gy & 255) << 8) | (gx & 255)
+
+  if (!inside(gx0, gy0)) return { mask, ha: null }
+  const qx = [gx0], qy = [gy0]
+  maskAt(gx0, gy0)[idx(gx0, gy0)] = 2
+  let count = 0
+  while (qx.length && count < FLOOD_MAX) {
+    const x = qx.pop()!, y = qy.pop()!
+    count++
+    for (let dy = -1; dy <= 1; dy++)
+      for (let dx = -1; dx <= 1; dx++) {
+        if (!dx && !dy) continue
+        const nx = x + dx, ny = y + dy
+        if (!fieldAt(nx, ny)) continue
+        const m = maskAt(nx, ny)
+        const j = idx(nx, ny)
+        if (m[j] === 2) continue
+        // bara raka grannar breder ut området; diagonalerna blir kantzon
+        if (!dx || !dy ? inside(nx, ny) : false) {
+          m[j] = 2
+          qx.push(nx)
+          qy.push(ny)
+        } else if (!m[j]) m[j] = 1
+      }
+  }
+  // fältpunktens yta i terrängen (mercator krymper med cos(lat))
+  const m = (40075016.686 * Math.cos((p.lat * Math.PI) / 180)) / W
+  return { mask, ha: (count * m * m) / 10000 }
 }
