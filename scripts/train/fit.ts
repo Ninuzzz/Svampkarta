@@ -14,6 +14,11 @@
  * Vikterna justeras med koordinatsökning och dras mot expertvärdena
  * (regularisering) så att modellen inte överanpassas.
  *
+ * Fyndkällor: GBIF (bl.a. Artportalen, koordinatosäkerhet ≤ 50 m) och, för
+ * svamparna, fynd från svampkarta.se (märkta med src). Modellen tränas både
+ * med och utan svampkarta-fynden; de används bara om de förbättrar resultatet
+ * på GBIF-testfynden.
+ *
  * Kontroll: 5-faldig geografisk korsvalidering. Sverige delas i rutor
  * (~55 × 30 km) som fördelas på 5 grupper. Modellen tränas fem gånger, varje
  * gång utan en grupp, och mäts bara på den utelämnade gruppen – alltså på
@@ -33,7 +38,7 @@ const feats: Record<string, PixelFeatures | (PixelFeatures | null)[] | null> = J
 const FOLDS = 5
 
 /** fv = alla prover i fönstret runt punkten (eller bara punkten) */
-type Pt = { lat: number; lng: number; fv: PixelFeatures[]; fold: number }
+type Pt = { lat: number; lng: number; fv: PixelFeatures[]; fold: number; src?: string }
 
 // Geografisk uppdelning: hela rutor (~55 × 30 km) hamnar i samma grupp
 const foldOf = (lat: number, lng: number) => {
@@ -43,12 +48,12 @@ const foldOf = (lat: number, lng: number) => {
   return (h >>> 0) % FOLDS
 }
 
-function points(prefix: string, list: { lat: number; lng: number }[]): Pt[] {
+function points(prefix: string, list: { lat: number; lng: number; src?: string }[]): Pt[] {
   const out: Pt[] = []
   list.forEach((p, i) => {
     const v = feats[`${prefix}:${i}`]
     const fv = (Array.isArray(v) ? v : [v]).filter((x): x is PixelFeatures => !!x)
-    if (fv.length) out.push({ lat: p.lat, lng: p.lng, fv, fold: foldOf(p.lat, p.lng) })
+    if (fv.length) out.push({ lat: p.lat, lng: p.lng, fv, fold: foldOf(p.lat, p.lng), src: p.src })
   })
   return out
 }
@@ -192,80 +197,104 @@ function fit(expert: SpeciesModel, p: Pt[], b: Pt[], l: Pt[]) {
 
 const mean = (xs: number[]) => xs.reduce((a, b) => a + b, 0) / xs.length
 const r3 = (v: number) => Math.round(v * 1000) / 1000
+const pct = (v: number) => `${Math.round(v * 100)} %`
 const report: Record<string, unknown> = {}
 const out: Record<string, unknown> = {}
+const fold = (k: number, inTest: boolean) => (x: Pt) => (x.fold === k) === inTest
 
 for (const expert of EXPERT_MODELS) {
   const info = occ.species[expert.id]
   if (!info) continue
   const pres = points(expert.id, info.points)
   const bg = points(`bg-${expert.kind}`, occ.background[expert.kind].points)
-  if (pres.length < 60) {
-    console.log(`${expert.id}: för få fynd (${pres.length}) – behåller expertvikter`)
+  // Testet görs alltid på GBIF-fynd (känd precision ≤ 50 m), så att varianterna mäts på samma sak
+  const presG = pres.filter((x) => !x.src)
+  const bgG = bg.filter((x) => !x.src)
+  const extra = pres.length - presG.length
+  if (presG.length < 60) {
+    console.log(`${expert.id}: för få fynd (${presG.length}) – behåller expertvikter`)
     continue
   }
 
-  // Korsvalidering: mät på varje utelämnad grupp
-  const m = { aucE: [] as number[], aucT: [] as number[], landE: [] as number[], landT: [] as number[], hitE: [] as number[], hitT: [] as number[], hitF: [] as number[], landF: [] as number[] }
-  let better = 0
+  // Varianter: G = tränad på GBIF, A = tränad på alla fynd (GBIF + svampkarta.se)
+  type Metrics = { auc: number[]; land: number[]; hit: number[] }
+  const blank = (): Metrics => ({ auc: [], land: [], hit: [] })
+  const m = { E: blank(), G: blank(), A: blank(), F: blank() }
+  // svampkarta-fynd i testområdena: mäter om de stämmer med modellen (bara som information)
+  const extraLand = { E: [] as number[], G: [] as number[], A: [] as number[] }
+  const betterThanE = { G: 0, A: 0 }
+  let aBeatsG = 0
   for (let k = 0; k < FOLDS; k++) {
-    const te = { p: pres.filter((x) => x.fold === k), b: bg.filter((x) => x.fold === k), l: land.filter((x) => x.fold === k) }
+    const te = { p: presG.filter(fold(k, true)), b: bgG.filter(fold(k, true)), l: land.filter(fold(k, true)) }
     if (te.p.length < 8 || te.b.length < 20 || te.l.length < 20) continue
-    const trained = fit(
-      expert,
-      pres.filter((x) => x.fold !== k),
-      bg.filter((x) => x.fold !== k),
-      land.filter((x) => x.fold !== k),
-    )
-    const ep = scores(expert, te.p), tp = scores(trained, te.p)
-    const el = scores(expert, te.l), tl = scores(trained, te.l)
-    const a = { aucE: auc(ep, scores(expert, te.b)), aucT: auc(tp, scores(trained, te.b)), landE: auc(ep, el), landT: auc(tp, tl) }
-    m.aucE.push(a.aucE)
-    m.aucT.push(a.aucT)
-    m.landE.push(a.landE)
-    m.landT.push(a.landT)
-    m.hitE.push(hit20(ep, el))
-    m.hitT.push(hit20(tp, tl))
+    const trL = land.filter(fold(k, false))
+    const models = {
+      E: expert,
+      G: fit(expert, presG.filter(fold(k, false)), bgG.filter(fold(k, false)), trL),
+      A: extra ? fit(expert, pres.filter(fold(k, false)), bg.filter(fold(k, false)), trL) : null,
+    }
+    const sum: Record<string, number> = {}
+    for (const v of ['E', 'G', 'A'] as const) {
+      const sp = models[v]
+      if (!sp) continue
+      const p = scores(sp, te.p), l = scores(sp, te.l)
+      const a = auc(p, scores(sp, te.b)), la = auc(p, l)
+      m[v].auc.push(a)
+      m[v].land.push(la)
+      m[v].hit.push(hit20(p, l))
+      sum[v] = a + la
+      const ex = pres.filter((x) => x.src && x.fold === k)
+      if (ex.length >= 8) extraLand[v].push(auc(scores(sp, ex), l))
+    }
     const fp = forestOnly(te.p), fl = forestOnly(te.l)
-    m.landF.push(auc(fp, fl))
-    m.hitF.push(hit20(fp, fl))
-    if (a.aucT + a.landT > a.aucE + a.landE) better++
+    m.F.land.push(auc(fp, fl))
+    m.F.hit.push(hit20(fp, fl))
+    if (sum.G > sum.E) betterThanE.G++
+    if (sum.A > sum.E) betterThanE.A++
+    if (sum.A > sum.G) aBeatsG++
   }
-  if (m.aucE.length < 3) {
+  const folds = m.E.auc.length
+  if (folds < 3) {
     console.log(`${expert.id}: för få testgrupper – behåller expertvikter`)
     continue
   }
+  const avg = (x: Metrics) => ({ auc: mean(x.auc), land: mean(x.land), hit: mean(x.hit) })
+  const E = avg(m.E), G = avg(m.G), A = m.A.auc.length ? avg(m.A) : null, F = { land: mean(m.F.land), hit: mean(m.F.hit) }
 
-  const s = Object.fromEntries(Object.entries(m).map(([k, v]) => [k, mean(v)])) as Record<keyof typeof m, number>
-  const folds = m.aucE.length
-  // används bara om de slår expertvikterna i snitt, i de flesta grupper, och inte tappar mycket i något mått
-  const used =
-    s.aucT + s.landT > s.aucE + s.landE + 0.01 && better >= Math.ceil(folds * 0.6) && s.aucT > s.aucE - 0.02 && s.landT > s.landE - 0.01
+  // Svampkarta-fynden används bara om de gör modellen bättre på GBIF-testet, i de flesta grupper
+  const useExtra = !!A && A.auc + A.land > G.auc + G.land + 0.005 && aBeatsG >= Math.ceil(folds * 0.6)
+  const T = useExtra ? A! : G
+  const better = useExtra ? betterThanE.A : betterThanE.G
+  // Tränade vikter används bara om de slår expertvikterna i snitt, i de flesta grupper, och inte tappar mycket i något mått
+  const used = T.auc + T.land > E.auc + E.land + 0.01 && better >= Math.ceil(folds * 0.6) && T.auc > E.auc - 0.02 && T.land > E.land - 0.01
 
   report[expert.id] = {
-    fynd: pres.length,
-    'bgfynd E→T': `${r3(s.aucE)} → ${r3(s.aucT)}`,
-    'mark E→T': `${r3(s.landE)} → ${r3(s.landT)}`,
-    'topp20 E→T': `${Math.round(s.hitE * 100)} → ${Math.round(s.hitT * 100)} %`,
-    'bara skog': `${r3(s.landF)} / ${Math.round(s.hitF * 100)} %`,
-    bättre: `${better}/${folds}`,
-    used,
+    gbif: presG.length,
+    extra,
+    'mark E / G / A': `${r3(E.land)} / ${r3(G.land)} / ${A ? r3(A.land) : '–'}`,
+    'bgfynd E / G / A': `${r3(E.auc)} / ${r3(G.auc)} / ${A ? r3(A.auc) : '–'}`,
+    'topp20 E / G / A': `${pct(E.hit)} / ${pct(G.hit)} / ${A ? pct(A.hit) : '–'}`,
+    'A>G': extra ? `${aBeatsG}/${folds}` : '–',
+    'sk-fynd mark E/G/A': extraLand.E.length ? `${r3(mean(extraLand.E))} / ${r3(mean(extraLand.G))} / ${r3(mean(extraLand.A))}` : '–',
+    'bara skog': `${r3(F.land)} / ${pct(F.hit)}`,
+    val: used ? (useExtra ? 'A' : 'G') : 'E',
   }
-  // Slutlig modell: tränad på alla fynd
-  const final = used ? fit(expert, pres, bg, land) : null
+  // Slutlig modell: tränad på alla fynd i den valda varianten
+  const final = used ? (useExtra ? fit(expert, pres, bg, land) : fit(expert, presG, bgG, land)) : null
   out[expert.id] = {
     used,
-    n: pres.length,
+    n: useExtra ? pres.length : presG.length,
+    extra: useExtra ? extra : 0,
     folds,
     better,
-    aucExpert: r3(s.aucE),
-    aucTrained: r3(s.aucT),
-    landExpert: r3(s.landE),
-    landTrained: r3(s.landT),
-    landForest: r3(s.landF),
-    hitExpert: r3(s.hitE),
-    hitTrained: r3(s.hitT),
-    hitForest: r3(s.hitF),
+    aucExpert: r3(E.auc),
+    aucTrained: r3(T.auc),
+    landExpert: r3(E.land),
+    landTrained: r3(T.land),
+    landForest: r3(F.land),
+    hitExpert: r3(E.hit),
+    hitTrained: r3(T.hit),
+    hitForest: r3(F.hit),
     params: final
       ? { tree: final.tree, wet: final.wet, soil: final.soil, tpi: final.tpi, south: final.south, openEdge: final.openEdge, wetEdge: final.wetEdge, continuity: final.continuity, age: final.age }
       : null,
@@ -277,7 +306,8 @@ console.table(report)
 
 const file = `/**
  * Genererad av scripts/train/fit.ts – ändra inte för hand.
- * Vikter tränade på öppna fynd från GBIF (bl.a. Artportalen), ${occ.filter.includes('2016,2025') ? '2016–2025' : ''}.
+ * Vikter tränade på öppna fynd från GBIF (bl.a. Artportalen), ${occ.filter.includes('2016,2025') ? '2016–2025' : ''}, och för vissa arter även svampkarta.se (extra).
+ * Testet görs alltid på GBIF-fynd.
  * Alla mått är medel över ${FOLDS}-faldig geografisk korsvalidering (mätt på platser modellen inte tränats på).
  * auc  = sannolikheten att en riktig fyndplats får högre poäng än ett annat svamp-/växtfynd (0,5 = slump, 1 = perfekt).
  * land = samma sak mot slumpade punkter på svensk mark.
@@ -289,6 +319,8 @@ import type { SpeciesId, SpeciesModel } from './species.ts'
 export interface TrainedInfo {
   used: boolean
   n: number
+  /** varav fynd från svampkarta.se */
+  extra: number
   /** antal testgrupper och hur många av dem där tränade vikter var bättre */
   folds: number
   better: number

@@ -292,6 +292,9 @@ function TourOverlay({ step, setStep, onClose }: { step: number; setStep: (n: nu
   const [cardH, setCardH] = useState(0)
   const [vp, setVp] = useState({ w: window.innerWidth, h: window.innerHeight })
   const card = useRef<HTMLDivElement>(null)
+  // sant medan sidan rullar till nästa mål – då ligger kortet kvar där det är
+  const [waiting, setWaiting] = useState(false)
+  const lastPos = useRef<{ left: number; top: number } | null>(null)
   const last = step === STEPS.length - 1
 
   // Byt vy vid behov och följ målet varje bildruta (kartan laddas lat, sidan kan scrollas)
@@ -308,18 +311,38 @@ function TourOverlay({ step, setStep, onClose }: { step: number; setStep: (n: nu
       setRect(null)
     }
     const settleAt = started + (switching ? 700 : 0)
+    // Medan sidan rullar till målet står spotlight och kort still – annars jagar de målet
+    // och studsar fram och tillbaka. När rullningen stannat glider de dit i ett drag.
+    let moving = false
+    setWaiting(false)
+    let lastTop = NaN
+    let still = 0
     const follow = () => {
       const el = s.targets && performance.now() >= settleAt ? findTarget(s.targets) : null
       let next: Box | null | undefined = current
       if (el) {
-        if (!scrolled) {
-          // stora mål (högre än halva skärmen) visas från toppen, så att rubriken syns
-          const big = el.getBoundingClientRect().height > window.innerHeight * 0.5
-          el.scrollIntoView({ block: big ? 'start' : 'nearest', behavior: 'smooth' })
-          scrolled = true
-        }
         const r = el.getBoundingClientRect()
-        next = { left: r.left, top: r.top, width: r.width, height: r.height }
+        if (!scrolled) {
+          scrolled = true
+          const vh = window.innerHeight
+          // stora mål (högre än halva skärmen) visas från toppen, så att rubriken syns
+          const big = r.height > vh * 0.5
+          if (r.top < 8 || r.bottom > vh - 8) {
+            el.scrollIntoView({ block: big ? 'start' : 'nearest', behavior: 'smooth' })
+            moving = true
+            setWaiting(true)
+          }
+        }
+        if (moving) {
+          still = Math.abs(r.top - lastTop) < 0.5 ? still + 1 : 0
+          lastTop = r.top
+          // stilla i fyra bildrutor (eller nödstopp efter 1,5 s) = framme
+          if (still >= 4 || performance.now() - started > 1500) {
+            moving = false
+            setWaiting(false)
+          }
+        }
+        if (!moving) next = { left: r.left, top: r.top, width: r.width, height: r.height }
       } else if (!s.targets || performance.now() - started > 1200) next = null
       // tills målet hittats ligger förra stegets spotlight kvar
       if (next !== undefined && (next ? !same(next, current ?? null) : current !== null)) {
@@ -389,6 +412,8 @@ function TourOverlay({ step, setStep, onClose }: { step: number; setStep: (n: nu
       top = vh - H - 16
     }
   }
+  if (waiting && lastPos.current) ({ left, top } = lastPos.current)
+  else lastPos.current = { left, top }
 
   // Utan mål krymper hålet till en punkt mitt på skärmen – samma element, så allt glider
   const hole = rect
