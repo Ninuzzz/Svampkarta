@@ -103,16 +103,22 @@ const OFFICIAL: Record<string, string> = {
 }
 
 /** Kommunen en punkt ligger i – räknas lokalt ur gränserna, inget skickas till någon tjänst. */
-export async function kommunAt(lat: number, lng: number): Promise<string | null> {
+export async function kommunOf(lat: number, lng: number): Promise<Kommun | null> {
   try {
     const index = await loadIndex()
     for (const k of index) {
       if (lng < k.bbox[0] || lng > k.bbox[2] || lat < k.bbox[1] || lat > k.bbox[3]) continue
       const shape = await loadShape(k.id)
-      if (shape && inside(shape.polygons, lng, lat)) return OFFICIAL[k.name] ?? `${k.name} kommun`
+      if (shape && inside(shape.polygons, lng, lat)) return k
     }
   } catch {
     /* utan nät och utan sparade gränser – visa inget */
   }
   return null
+}
+
+/** Kommunens officiella namn ("Landskrona kommun", "Malmö stad") för en punkt. */
+export async function kommunAt(lat: number, lng: number): Promise<string | null> {
+  const k = await kommunOf(lat, lng)
+  return k ? (OFFICIAL[k.name] ?? `${k.name} kommun`) : null
 }

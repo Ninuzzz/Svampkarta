@@ -34,6 +34,7 @@ npm run deploy
 - Utzoomat (< 13) får chanslagret ett sken (`.chance-overview` i `index.css`). Topparna visar chansen i procent (standard sedan 2026-10-08, användarens pappa ville det). Med inställningen "Procent på kartan" avslagen visas i stället Bäst/Bra/Möjlig jämfört med den bästa i vyn (`hotspotTier` i `src/map/tier.ts`). Inställningen sparas som `labelWords` i `mycel:map`.
 - Klick på chansfliken markerar det sammanhängande chansområdet (vit kant, `floodArea` i `ChanceLayer.ts`) och kortet visar dess storlek. På skogsfliken visas i stället skogsbeståndet från `inspect` i workern (samma skogstyp, begränsat till en ruta).
 - Kartan analyserar bara valda kommuner (`AreaPicker`, `public/kommuner/*.json`, byggs med `scripts/kommuner/build.mjs`).
+- Ligger kartans mitt i en kommun som inte är vald visas rutan "<kommun> är inte med än · Lägg till · ×" (`offerKommun` i `MapView.tsx`, kommunen räknas lokalt med `kommunOf` i `src/lib/kommuner.ts`). Förslag från användarens pappa.
 - Modellformeln finns i `src/analysis/model.ts`. Den är multiplikativ: habitat × jord × terräng × kanter × ålder × stig, och delas med träningen.
 - Artmodellerna ligger i `species.ts`. Tränade vikter finns i `trained.ts`, som genereras.
 

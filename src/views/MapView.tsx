@@ -22,7 +22,7 @@ import type { ChanceMode, ChanceOptions, Hotspot } from '../analysis/protocol'
 import { chanceMinZoom, type ChanceProgress } from '../map/ChanceLayer'
 import { AreaSheet, type AreaSelection } from '../map/AreaSheet'
 import { AreaCard, AreaOutlines } from '../map/AreaPicker'
-import { kommunAt, unionBounds, useKommunIndex, type Kommun } from '../lib/kommuner'
+import { kommunAt, kommunOf, unionBounds, useKommunIndex, type Kommun } from '../lib/kommuner'
 import { useOfflineSave, useOnline } from '../lib/offline'
 import { ChanceSettings, HotspotList, MinChanceCard, TargetPicker, WeatherCard } from '../map/ChancePanel'
 import { useTour } from '../components/Tour'
@@ -174,6 +174,25 @@ export default function MapView() {
     (id: string) => setPrefs((p) => ({ ...p, wholeView: false, areas: p.areas.includes(id) ? p.areas : [...p.areas, id] })),
     [],
   )
+  /** kommunen i kartans mitt, och de man tackat nej till att lägga till (gäller tills sidan laddas om) */
+  const [viewKommun, setViewKommun] = useState<Kommun | null>(null)
+  const [skipKommun, setSkipKommun] = useState<string[]>([])
+  useEffect(() => {
+    let alive = true
+    const t = window.setTimeout(() => kommunOf(center.lat, center.lng).then((k) => alive && setViewKommun(k)), 300)
+    return () => {
+      alive = false
+      window.clearTimeout(t)
+    }
+  }, [center.lat, center.lng])
+  /** Lägg till kommunen och zooma in så långt att chansen syns, utan att flytta kartan. */
+  const addViewKommun = (k: Kommun) => {
+    addArea(k.id)
+    if (map && kommunIndex) {
+      const min = chanceMinZoom(unionBounds(kommunIndex, [...prefs.areas, k.id]))
+      if (map.getZoom() < min) map.setZoom(min)
+    }
+  }
   const learning = useLearning(data)
   const online = useOnline()
 
@@ -289,11 +308,14 @@ export default function MapView() {
   const base = BASEMAPS[prefs.basemap]
   const chanceTab = prefs.tab === 'chans'
   const showForest = prefs.filter.enabled && (!chanceTab || prefs.forestUnder)
-  const zoomHint = chanceTab ? zoom < chanceMin : showForest && zoom < FOREST_MIN_ZOOM
+  // Kartans mitt i en kommun som inte analyseras: erbjud att lägga till den direkt
+  const offerKommun =
+    chanceTab && !prefs.wholeView && viewKommun && !prefs.areas.includes(viewKommun.id) && !skipKommun.includes(viewKommun.id) && zoom >= 8 ? viewKommun : null
+  const zoomHint = !offerKommun && (chanceTab ? zoom < chanceMin : showForest && zoom < FOREST_MIN_ZOOM)
   const standUrl = useMemo(() => (area?.result?.stand ? standImage(area.result.stand) : null), [area?.result])
   const sheetOpen = !!(area || selected)
   const { done, total } = rawSpots.progress
-  const analysing = chanceTab && zoom >= chanceMin && (total > 0 || !weatherSettled)
+  const analysing = !offerKommun && chanceTab && zoom >= chanceMin && (total > 0 || !weatherSettled)
   const pct = total ? Math.round((done / total) * 100) : 0
 
   const closeSheet = () => {
@@ -498,6 +520,28 @@ export default function MapView() {
                 <span className="w-11 text-right tabular text-ink-muted">{pct}&nbsp;%</span>
               </>
             )}
+          </div>
+        </div>
+      )}
+
+      {offerKommun && (
+        // mobil: ovanför artknappen (fri från zoomknapparna och nära tummen), dator: överst
+        <div className="pointer-events-none fixed inset-x-0 bottom-[calc(11.25rem+env(safe-area-inset-bottom))] z-[900] flex justify-center px-4 lg:top-24 lg:bottom-auto lg:pl-[420px]">
+          <div className="glass rise pointer-events-auto flex items-center gap-2 !rounded-full py-1.5 pr-1.5 pl-4 text-sm font-semibold" role="status">
+            <span className="min-w-0 truncate">
+              <b>{offerKommun.name}</b> är inte med än
+            </span>
+            <button type="button" className="btn btn-primary !min-h-9 shrink-0 !px-4 !text-[13px]" onClick={() => addViewKommun(offerKommun)}>
+              <Plus size={14} weight="bold" aria-hidden="true" /> Lägg till
+            </button>
+            <button
+              type="button"
+              className="icon-btn !size-9 shrink-0"
+              aria-label={`Inte nu – lägg inte till ${offerKommun.name}`}
+              onClick={() => setSkipKommun((s) => [...s, offerKommun.id])}
+            >
+              <X size={16} aria-hidden="true" />
+            </button>
           </div>
         </div>
       )}
