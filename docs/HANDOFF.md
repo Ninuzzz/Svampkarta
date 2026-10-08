@@ -99,11 +99,11 @@ Gjort:
 - Site URL och Redirect URLs är inställda.
 - Google-inloggning är påslagen.
 - Egen SMTP via Gmail med applösenord.
+- `hardening.sql` är körd (bekräftat 2026-10-08).
+- E-postmallarna från `supabase/email/` är inlagda (bekräftat 2026-10-08).
 
 Oklart eller kvar:
-- **`hardening.sql` är skickad men inte bekräftad som körd.** Fråga.
-- E-postmallarna i `supabase/email/` är skickade. Användaren hade först problem med steg 3 och fick sedan färdiga mallar att klistra in. Oklart om de är inlagda.
-- Om Google-appen står i testläge måste användaren vara testanvändare eller publicera appen.
+- Användaren vet inte om Google-appen står i testläge. Står den det måste användaren vara testanvändare eller publicera appen.
 - **Synken är inte testad med ett riktigt konto.** Den är verifierad med typkontroll, granskning och genomläsning. Be användaren testa på två enheter.
 
 ## Kända begränsningar och idéer

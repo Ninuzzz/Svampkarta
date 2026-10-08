@@ -207,7 +207,10 @@ export function SyncPanel() {
         </p>
       )}
       <p className="mt-3 text-[12px] leading-snug text-ink-muted">
-        Bara du kommer åt det du sparar. Kartan och allt annat fungerar precis som vanligt utan konto.
+        Bara du kommer åt det du sparar. Kartan och allt annat fungerar precis som vanligt utan konto.{' '}
+        <a href="/integritet.html" className="font-semibold text-sage-600 underline">
+          Integritetspolicy
+        </a>
       </p>
     </div>
   )

@@ -94,7 +94,8 @@ self.addEventListener('fetch', (e) => {
 
   if (url.origin === self.location.origin) {
     // sidan: senaste versionen om nätet finns, annars den sparade
-    if (req.mode === 'navigate') {
+    // integritetspolicyn är en egen statisk sida, inte appen
+    if (req.mode === 'navigate' && url.pathname !== '/integritet.html') {
       e.respondWith(networkFirst(new Request('/index.html'), APP, 4000))
       return
     }
