@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="sv">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light" />
+    <meta name="supported-color-schemes" content="light" />
+    <title>Välkommen till Mycel</title>
+  </head>
+  <body style="margin:0;padding:0;background:#f6efd6;">
+    <!-- förhandstext i inkorgen -->
+    <div style="display:none;max-height:0;overflow:hidden;opacity:0;">Tryck på knappen för att logga in – eller använd koden {{ .Token }}.</div>
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#f6efd6;">
+      <tr>
+        <td align="center" style="padding:32px 16px;">
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:480px;background:#fffbeb;border-radius:24px;border:1px solid #ebdfba;">
+            <tr>
+              <td style="padding:32px 32px 8px 32px;">
+                <table role="presentation" cellpadding="0" cellspacing="0" border="0">
+                  <tr>
+                    <td style="vertical-align:middle;">
+                      <img src="https://mycel-svampkarta.netlify.app/icons/icon-192.png" width="44" height="44" alt="" style="display:block;border:0;border-radius:12px;" />
+                    </td>
+                    <td style="vertical-align:middle;padding-left:12px;font-family:'Figtree',Segoe UI,Helvetica,Arial,sans-serif;font-size:22px;font-weight:800;color:#2d4600;letter-spacing:-0.3px;">
+                      Mycel
+                    </td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:16px 32px 0 32px;font-family:'Figtree',Segoe UI,Helvetica,Arial,sans-serif;">
+                <h1 style="margin:0;font-size:26px;line-height:1.2;font-weight:800;color:#1f2b05;letter-spacing:-0.4px;">Välkommen till Mycel</h1>
+                <p style="margin:12px 0 0 0;font-size:16px;line-height:1.55;color:#4b5a2a;">
+                  Kul att du är här! Tryck på knappen för att logga in första gången. Sedan följer dina platser, rundor och rutter med mellan mobil och dator.
+                </p>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:24px 32px 0 32px;">
+                <!-- knapp som fungerar även i Outlook -->
+                <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
+                  <tr>
+                    <td align="center" bgcolor="#2d4600" style="border-radius:999px;">
+                      <a href="{{ .ConfirmationURL }}" target="_blank" style="display:block;padding:16px 24px;font-family:'Figtree',Segoe UI,Helvetica,Arial,sans-serif;font-size:17px;font-weight:700;color:#fffbeb;text-decoration:none;border-radius:999px;">
+                        Logga in
+                      </a>
+                    </td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:24px 32px 0 32px;font-family:'Figtree',Segoe UI,Helvetica,Arial,sans-serif;">
+                <p style="margin:0;font-size:14px;line-height:1.5;color:#535b3f;">Använder du appen på hemskärmen? Skriv in koden i stället:</p>
+                <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="margin-top:10px;">
+                  <tr>
+                    <td align="center" style="background:#f5edd3;border-radius:16px;padding:14px 12px;font-family:Consolas,'SF Mono',Menlo,monospace;font-size:28px;font-weight:700;letter-spacing:6px;color:#2d4600;">
+                      {{ .Token }}
+                    </td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:24px 32px 32px 32px;font-family:'Figtree',Segoe UI,Helvetica,Arial,sans-serif;">
+                <p style="margin:0;font-size:13px;line-height:1.5;color:#535b3f;">
+                  Länken och koden gäller i en timme. Har du inte skapat något konto kan du strunta i det här mejlet – inget händer.
+                </p>
+              </td>
+            </tr>
+          </table>
+          <p style="margin:16px 0 0 0;font-family:'Figtree',Segoe UI,Helvetica,Arial,sans-serif;font-size:12px;color:#6b7550;">
+            Mycel · svamp- och bärkartan · <a href="https://mycel-svampkarta.netlify.app" style="color:#2d4600;">mycel-svampkarta.netlify.app</a>
+          </p>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>
