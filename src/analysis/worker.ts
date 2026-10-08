@@ -59,14 +59,61 @@ const CACHE_NAME = 'mycel-data-v1'
 let cacheP: Promise<Cache | null> | null = null
 const openCache = () => (cacheP ??= 'caches' in self ? caches.open(CACHE_NAME).catch(() => null) : Promise.resolve(null))
 
-async function fetchBlob(url: string): Promise<Blob> {
-  const cache = await openCache()
-  const hit = await cache?.match(url).catch(() => undefined)
-  if (hit) return hit.blob()
+/**
+ * På den publicerade sajten går NMD- och SGU-bilderna via Netlifys delade cache
+ * (netlify/functions/wms.mts) – källservrarna är långsamma. Svarar inte cachen
+ * hämtas bilden direkt från källan.
+ */
+function viaCdn(url: string) {
+  if (!import.meta.env.PROD) return null
+  if (url.startsWith(NMD_WMS + '?')) return '/wms/nmd' + url.slice(NMD_WMS.length)
+  if (url.startsWith(SGU_WMS + '?')) return '/wms/sgu' + url.slice(SGU_WMS.length)
+  return null
+}
+
+async function download(url: string): Promise<Blob> {
   const res = await fetch(url, { mode: 'cors' })
   if (!res.ok) throw new Error(`HTTP ${res.status}`)
   const blob = await res.blob()
   if (!blob.type.startsWith('image')) throw new Error('Inte en bild')
+  return blob
+}
+
+/**
+ * Cachen svarar på under en sekund när bilden redan finns där. Finns den inte
+ * hämtar funktionen från källan, och den kan ge upp efter 10 s – så om inget
+ * svar kommit efter 2,5 s hämtas bilden även direkt, och det som kommer först används.
+ */
+function raceCdn(cdn: string, direct: string): Promise<Blob> {
+  return new Promise((resolve, reject) => {
+    let settled = false
+    let failures = 0
+    let started = 1
+    const ok = (b: Blob) => {
+      settled = true
+      clearTimeout(timer)
+      resolve(b)
+    }
+    const fail = (e: unknown) => {
+      if (++failures === started && started === 2) reject(e)
+      else if (started === 1) startDirect()
+    }
+    const startDirect = () => {
+      if (started === 2 || settled) return
+      started = 2
+      download(direct).then(ok, fail)
+    }
+    download(cdn).then(ok, fail)
+    const timer = setTimeout(startDirect, 2500)
+  })
+}
+
+async function fetchBlob(url: string): Promise<Blob> {
+  const cache = await openCache()
+  const hit = await cache?.match(url).catch(() => undefined)
+  if (hit) return hit.blob()
+  const cdn = viaCdn(url)
+  const blob = cdn ? await raceCdn(cdn, url) : await download(url)
   cache?.put(url, new Response(blob, { headers: { 'content-type': blob.type } })).catch(() => {})
   return blob
 }

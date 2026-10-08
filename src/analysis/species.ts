@@ -13,7 +13,8 @@
 
 import { TRAINED } from './trained.ts'
 
-export type TreeKey = 'tall' | 'gran' | 'barrbland' | 'lovbarr' | 'triv' | 'adel' | 'fjall' | 'hygge' | 'mire'
+/** 'oppen' = öppen naturmark (hällmark, ljunghed, glänta) – inte åker eller bebyggelse */
+export type TreeKey = 'tall' | 'gran' | 'barrbland' | 'lovbarr' | 'triv' | 'adel' | 'fjall' | 'hygge' | 'mire' | 'oppen'
 export type SoilKey = 'sand' | 'moran' | 'lera' | 'torv' | 'berg'
 export type SpeciesId =
   | 'kantarell'
@@ -247,7 +248,7 @@ export const EXPERT_MODELS: SpeciesModel[] = [
     name: 'Blåbär',
     kind: 'bar',
     habitat: 'Skuggig, frisk granskog på morän',
-    tree: { tall: 0.65, gran: 1, barrbland: 0.95, lovbarr: 0.8, triv: 0.4, adel: 0.15, fjall: 0.6, hygge: 0.12 },
+    tree: { tall: 0.65, gran: 1, barrbland: 0.95, lovbarr: 0.8, triv: 0.4, adel: 0.15, fjall: 0.6, hygge: 0.12, oppen: 0.25 },
     wet: { dry: 1, wet: 0.7 },
     soil: { sand: 0.6, moran: 1, lera: 0.5, torv: 0.6, berg: 0.6 },
     tpi: -0.05,
@@ -270,7 +271,7 @@ export const EXPERT_MODELS: SpeciesModel[] = [
     name: 'Lingon',
     kind: 'bar',
     habitat: 'Torr, gles tallskog på sand och berghällar',
-    tree: { tall: 1, gran: 0.45, barrbland: 0.8, lovbarr: 0.45, triv: 0.2, adel: 0.05, fjall: 0.6, hygge: 0.3 },
+    tree: { tall: 1, gran: 0.45, barrbland: 0.8, lovbarr: 0.45, triv: 0.2, adel: 0.05, fjall: 0.6, hygge: 0.3, oppen: 0.5 },
     wet: { dry: 1, wet: 0.45 },
     soil: { sand: 1, moran: 0.8, lera: 0.25, torv: 0.3, berg: 0.9 },
     tpi: 0.2,
@@ -293,7 +294,7 @@ export const EXPERT_MODELS: SpeciesModel[] = [
     name: 'Hjortron',
     kind: 'bar',
     habitat: 'Öppna myrar, framför allt i norra Sverige',
-    tree: { mire: 1, tall: 0.15, gran: 0.05, barrbland: 0.05, fjall: 0.3 },
+    tree: { mire: 1, tall: 0.15, gran: 0.05, barrbland: 0.05, fjall: 0.3, oppen: 0.1 },
     wet: { dry: 0, wet: 1 },
     soil: { sand: 0.3, moran: 0.3, lera: 0.2, torv: 1, berg: 0.2 },
     tpi: -0.2,
@@ -315,7 +316,7 @@ export const EXPERT_MODELS: SpeciesModel[] = [
     name: 'Hallon',
     kind: 'bar',
     habitat: 'Hyggen, skogsbryn och ungskog',
-    tree: { hygge: 1, triv: 0.4, lovbarr: 0.3, barrbland: 0.15, tall: 0.1, gran: 0.1, adel: 0.2 },
+    tree: { hygge: 1, triv: 0.4, lovbarr: 0.3, barrbland: 0.15, tall: 0.1, gran: 0.1, adel: 0.2, oppen: 0.45 },
     wet: { dry: 1, wet: 0.5 },
     soil: { sand: 0.7, moran: 1, lera: 0.9, torv: 0.4, berg: 0.6 },
     tpi: 0,
@@ -338,7 +339,7 @@ export const EXPERT_MODELS: SpeciesModel[] = [
     name: 'Tranbär',
     kind: 'bar',
     habitat: 'Mossar och myrar',
-    tree: { mire: 1, tall: 0.1 },
+    tree: { mire: 1, tall: 0.1, oppen: 0.1 },
     wet: { dry: 0, wet: 1 },
     soil: { sand: 0.2, moran: 0.2, lera: 0.2, torv: 1, berg: 0.1 },
     tpi: -0.2,
@@ -359,7 +360,7 @@ export const EXPERT_MODELS: SpeciesModel[] = [
     name: 'Smultron',
     kind: 'bar',
     habitat: 'Soliga gläntor, hyggen och skogsbryn',
-    tree: { hygge: 0.7, adel: 0.3, triv: 0.3, lovbarr: 0.2, tall: 0.15 },
+    tree: { hygge: 0.7, adel: 0.3, triv: 0.3, lovbarr: 0.2, tall: 0.15, oppen: 0.55 },
     wet: { dry: 1, wet: 0.2 },
     soil: { sand: 0.9, moran: 0.8, lera: 0.6, torv: 0.1, berg: 0.8 },
     tpi: 0.1,

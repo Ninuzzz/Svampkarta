@@ -8,6 +8,13 @@
 /img/*
   Cache-Control: public, max-age=604800
 
+# Service workern måste alltid kontrolleras mot servern, annars fastnar gamla versioner
+/sw.js
+  Cache-Control: no-cache
+
+/icons/*
+  Cache-Control: public, max-age=604800
+
 /*
   X-Content-Type-Options: nosniff
   Referrer-Policy: strict-origin-when-cross-origin

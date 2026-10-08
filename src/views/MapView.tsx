@@ -1,26 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type Dispatch, type FormEvent, type ReactNode, type SetStateAction } from 'react'
 import L from 'leaflet'
 import { ImageOverlay, MapContainer, Marker, Pane, Polyline, TileLayer, useMap, useMapEvents } from 'react-leaflet'
-import {
-  ArrowCounterClockwise,
-  BookOpenText,
-  CaretUp,
-  Crosshair,
-  Drop,
-  Leaf,
-  MagnifyingGlass,
-  Minus,
-  Mountains,
-  NavigationArrow,
-  PencilSimple,
-  Plus,
-  Question,
-  SlidersHorizontal,
-  SpinnerGap,
-  Stack,
-  TreeEvergreen,
-  X,
-} from '@phosphor-icons/react'
+import { ArrowCounterClockwise, BookOpenText, CaretUp, Crosshair, Drop, Leaf, MagnifyingGlass, Minus, Mountains, NavigationArrow, PencilSimple, Plus, Question, SlidersHorizontal, SpinnerGap, Stack, TreeEvergreen, WifiSlash, X } from '@phosphor-icons/react'
 import { actions, useData } from '../lib/store'
 import { HOME } from '../lib/home'
 import { useRoute } from '../lib/router'
@@ -42,6 +23,7 @@ import { chanceMinZoom, type ChanceProgress } from '../map/ChanceLayer'
 import { AreaSheet, type AreaSelection } from '../map/AreaSheet'
 import { AreaCard, AreaOutlines } from '../map/AreaPicker'
 import { unionBounds, useKommunIndex, type Kommun } from '../lib/kommuner'
+import { useOfflineSave, useOnline } from '../lib/offline'
 import { ChanceSettings, HotspotList, MinChanceCard, TargetPicker, WeatherCard } from '../map/ChancePanel'
 import { useTour } from '../components/Tour'
 
@@ -199,6 +181,7 @@ export default function MapView() {
     [],
   )
   const learning = useLearning(data)
+  const online = useOnline()
 
   // Starta analysen först när vädret finns (eller efter 2,5 s) – annars räknas allt om direkt
   const [weatherSettled, setWeatherSettled] = useState(false)
@@ -237,6 +220,7 @@ export default function MapView() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [prefs.target, prefs.chanceMode, weatherKey, learning, prefs.minChance, prefs.minAreaHa, prefs.wholeView, prefs.areas.join()],
   )
+  const offline = useOfflineSave([...prefs.areas].sort().join(','), areaBounds, chanceOpts)
 
   // Djuplänkar: #/karta?place=id, ?route=id eller ?lat=&lng=&z=
   useEffect(() => {
@@ -336,11 +320,11 @@ export default function MapView() {
   return (
     <div className="relative h-dvh w-full overflow-hidden">
       <MapContainer center={[HOME.lat, HOME.lng]} zoom={HOME.zoom} minZoom={4} maxZoom={19} zoomControl={false} className="isolate size-full" ref={setMap} worldCopyJump>
-        <TileLayer key={prefs.basemap} url={base.url} attribution={base.attribution} maxNativeZoom={base.maxNativeZoom} maxZoom={19} subdomains={base.subdomains ?? 'abc'} className={base.className} />
-        {base.detail && <TileLayer key={`${prefs.basemap}-detail`} url={base.detail.url} minZoom={base.detail.minZoom} maxZoom={19} />}
+        <TileLayer key={prefs.basemap} url={base.url} attribution={base.attribution} maxNativeZoom={base.maxNativeZoom} maxZoom={19} subdomains={base.subdomains ?? 'abc'} className={base.className} crossOrigin="anonymous" />
+        {base.detail && <TileLayer key={`${prefs.basemap}-detail`} url={base.detail.url} minZoom={base.detail.minZoom} maxZoom={19} crossOrigin="anonymous" />}
         {prefs.hillshade && (
           <Pane name="hillshade" style={{ zIndex: 250, mixBlendMode: 'multiply' }}>
-            <TileLayer url={HILLSHADE_URL} opacity={prefs.hillshadeOpacity} maxNativeZoom={16} maxZoom={19} attribution="Terrängskuggning &copy; Esri" />
+            <TileLayer url={HILLSHADE_URL} opacity={prefs.hillshadeOpacity} maxNativeZoom={16} maxZoom={19} attribution="Terrängskuggning &copy; Esri" crossOrigin="anonymous" />
           </Pane>
         )}
         {showForest && <ForestOverlay filter={chanceTab ? { ...prefs.filter, opacity: Math.min(prefs.filter.opacity, 0.35) } : prefs.filter} />}
@@ -444,6 +428,9 @@ export default function MapView() {
               onChange={(areas) => setPrefs((p) => ({ ...p, areas }))}
               onWholeView={(wholeView) => setPrefs((p) => ({ ...p, wholeView }))}
               onFocus={focusKommun}
+              offline={offline.state}
+              onSaveOffline={offline.start}
+              onCancelOffline={offline.cancel}
             />
             <WeatherCard weather={weather} error={weatherError} />
             <MinChanceCard
@@ -476,6 +463,13 @@ export default function MapView() {
       <MapControls map={map} onLocate={locate} shifted={sheetOpen} />
 
       {/* Analysförlopp */}
+      {!online && (
+        <div className="pointer-events-none fixed inset-x-0 bottom-[calc(10rem+env(safe-area-inset-bottom))] z-[900] flex justify-center px-4 lg:bottom-6 lg:pl-[420px]">
+          <div className="glass flex items-center gap-2 !rounded-full py-1.5 pr-4 pl-3 text-[13px] font-semibold" role="status" aria-live="polite">
+            <WifiSlash size={16} className="text-sage-600" aria-hidden="true" /> Offline – visar sparad data
+          </div>
+        </div>
+      )}
       {analysing && !zoomHint && (
         <div className="pointer-events-none fixed inset-x-0 top-[calc(5.25rem+env(safe-area-inset-top))] z-[900] flex justify-center px-4 lg:top-24 lg:pl-[420px]">
           <div className="glass flex items-center gap-3 !rounded-full py-2 pr-4 pl-3 text-sm font-semibold" role="status" aria-live="polite">

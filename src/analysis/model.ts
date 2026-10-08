@@ -5,7 +5,8 @@
  */
 import type { SpeciesModel, TreeKey } from './species'
 
-export const TREE_KEYS: (TreeKey | null)[] = [null, 'tall', 'gran', 'barrbland', 'lovbarr', 'triv', 'adel', 'fjall', 'hygge', 'mire']
+// Ordningen får inte ändras (index sparas i träningsdatan) – nya typer läggs sist
+export const TREE_KEYS: (TreeKey | null)[] = [null, 'tall', 'gran', 'barrbland', 'lovbarr', 'triv', 'adel', 'fjall', 'hygge', 'mire', 'oppen']
 export const SOIL_GROUPS = [null, 'sand', 'moran', 'lera', 'torv', 'berg'] as const
 
 /** Artoberoende egenskaper i en punkt. */

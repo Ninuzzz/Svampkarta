@@ -1,8 +1,9 @@
 import { useMemo, useState } from 'react'
 import L from 'leaflet'
 import { Marker, Polygon } from 'react-leaflet'
-import { Globe, MagnifyingGlass, MapPinArea, Plus, X } from '@phosphor-icons/react'
+import { CheckCircle, CloudArrowDown, Globe, MagnifyingGlass, MapPinArea, Plus, X } from '@phosphor-icons/react'
 import { useShapes, type Kommun } from '../lib/kommuner'
+import type { OfflineState } from '../lib/offline'
 
 /** Ett valt områdes gräns (streckad, som på svampkarta.se) + grannarna som klickbara knappar. */
 export function AreaOutlines({
@@ -55,6 +56,9 @@ export function AreaCard({
   onChange,
   onWholeView,
   onFocus,
+  offline,
+  onSaveOffline,
+  onCancelOffline,
 }: {
   index: Kommun[] | null
   selected: string[]
@@ -62,6 +66,9 @@ export function AreaCard({
   onChange: (ids: string[]) => void
   onWholeView: (v: boolean) => void
   onFocus: (k: Kommun) => void
+  offline: OfflineState
+  onSaveOffline: () => void
+  onCancelOffline: () => void
 }) {
   const [q, setQ] = useState('')
   const byId = useMemo(() => new Map((index ?? []).map((k) => [k.id, k])), [index])
@@ -125,6 +132,8 @@ export function AreaCard({
             {!chosen.length && <li className="text-[12px] text-ink-muted">Inget område valt – välj en kommun nedan.</li>}
           </ul>
 
+          {chosen.length > 0 && <OfflineRow state={offline} onSave={onSaveOffline} onCancel={onCancelOffline} />}
+
           {neighbors.length > 0 && (
             <>
               <p className="mt-3 mb-1.5 text-[11px] font-bold tracking-wide text-ink-muted uppercase">Närliggande</p>
@@ -166,6 +175,51 @@ export function AreaCard({
           </ul>
         )}
       </div>
+    </div>
+  )
+}
+
+/** Spara valt område för användning utan täckning. */
+function OfflineRow({ state, onSave, onCancel }: { state: OfflineState; onSave: () => void; onCancel: () => void }) {
+  if (state.saving) {
+    const pct = state.total ? Math.round((state.done / state.total) * 100) : 0
+    return (
+      <div className="mt-3 rounded-2xl bg-sand-100/70 p-3" role="status" aria-live="polite">
+        <div className="flex items-center justify-between gap-2 text-[12px] font-semibold">
+          <span>Sparar för offline …</span>
+          <span className="tabular text-ink-muted">
+            {state.done} / {state.total}
+          </span>
+        </div>
+        <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-sand-200">
+          <div className="h-full rounded-full bg-forest-600 transition-[width] duration-300" style={{ width: `${pct}%` }} />
+        </div>
+        <button type="button" className="mt-2 text-[12px] font-semibold text-sage-600 hover:underline" onClick={onCancel}>
+          Avbryt
+        </button>
+      </div>
+    )
+  }
+  if (state.savedAt)
+    return (
+      <div className="mt-3 flex items-center justify-between gap-2 text-[12px]">
+        <span className="flex items-center gap-1.5 font-semibold text-forest-700">
+          <CheckCircle size={16} weight="fill" /> Sparat för offline {state.savedAt}
+        </span>
+        <button type="button" className="font-semibold text-sage-600 hover:underline" onClick={onSave}>
+          Uppdatera
+        </button>
+      </div>
+    )
+  return (
+    <div className="mt-3">
+      <button type="button" className="chip !min-h-9 w-full justify-center !text-[13px]" onClick={onSave}>
+        <CloudArrowDown size={16} weight="bold" /> Spara området för offline
+      </button>
+      <p className="mt-1.5 text-[11px] leading-snug text-ink-muted">
+        {state.failed ? `${state.failed} delar gick inte att hämta – försök igen med bättre täckning. ` : ''}
+        Då fungerar chanskartan utan täckning. Titta gärna igenom området på kartan först, så sparas även bakgrundsbilderna.
+      </p>
     </div>
   )
 }

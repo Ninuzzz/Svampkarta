@@ -1,0 +1,17 @@
+{
+  "name": "Mycel – svamp- och bärkarta",
+  "short_name": "Mycel",
+  "description": "Hitta områden med hög chans för svamp och bär, och spara dina egna guldställen. Fungerar även utan täckning.",
+  "lang": "sv",
+  "start_url": "/#/karta",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#FFFBEB",
+  "theme_color": "#2D4600",
+  "icons": [
+    { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

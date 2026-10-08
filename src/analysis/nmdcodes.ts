@@ -29,7 +29,7 @@ const F = (label: string, tree: TreeKey, wet: boolean, extra: Partial<CodeInfo> 
 export const CODE_INFO: Record<number, CodeInfo> = {
   3: { label: 'Åkermark', open: true },
   23: F('Låg fjällskog på våtmark', 'fjall', true, { leaf: 90 }),
-  41: { label: 'Öppen mark', open: true },
+  41: { label: 'Öppen mark', open: true, tree: 'oppen' },
   43: F('Låg fjällskog på fastmark', 'fjall', false, { leaf: 90 }),
   51: { label: 'Byggnad', built: true },
   52: { label: 'Anlagd mark', built: true, open: true },
