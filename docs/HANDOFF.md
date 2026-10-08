@@ -66,7 +66,7 @@ npm run deploy
 - Foton ligger i bucketen `photos`.
 - Inloggningen sker inline i `src/components/SyncPanel.tsx` (kortet "Din data stannar hos dig" på startsidan), utan popup.
 - Kontoägare per enhet: `mycel:sync-owner`. Byter ett annat konto sparas den gamla datan i `mycel:backup:<uid>`.
-- Schema: `supabase/schema.sql` och `supabase/hardening.sql`. E-postmallar: `supabase/email/`.
+- Schema: `supabase/schema.sql`, `supabase/hardening.sql` och `supabase/delete-account.sql` (funktionen `delete_my_account()` för knappen "Radera konto" i `SyncPanel`; appen tar först bort fotona via Storage). E-postmallar: `supabase/email/`.
 
 **Säkerhet**
 
@@ -113,7 +113,8 @@ Oklart eller kvar:
 
 ## Kända begränsningar och idéer
 
-- Blåbär och lingon är fortfarande svagast mot slumpvisa markpunkter.
+- Blåbär och lingon är fortfarande svagast. Orsaken är datan: Artportalens bärfynd ligger mest i södra Sverige, nära bebyggelse och på berg eller sand, medan markpunkterna är slumpade över hela landet (där morän dominerar). Sedan 2026-10-08 viktar `fit.ts` därför markpunkterna för bär efter fyndens regioner (breddgrad × väst/öst). Morän gick då från 0,26 till 0,48 (blåbär) och från 0,23 till 0,43 (lingon). Träffsäkerheten blev ungefär oförändrad: blåbär 32 % och lingon 33 % i bästa femtedelen, mot 22 % och 16 % för "all skog". Att bli märkbart bättre kräver fler markpunkter i samma regioner som fynden (kör `extract.mjs` med fler `rnd`-punkter) eller bättre data.
+- Träna om bara vissa arter: `ONLY=blabar,lingon node scripts/train/fit.ts`. Lägg till `OLD=1` för att också mäta de nuvarande vikterna.
 - Lager med riktiga fynd (GBIF/svampkarta-prickar på kartan) har föreslagits men inte gjorts.
 - Användaren rapporterade att åkermark markerades. Det kunde inte återskapas för svampar. Spärren ovan är den troliga lösningen för bär. **Be användaren bekräfta** och fråga vilken art och plats det gällde.
 - Puppeteer-test på Windows: använd korta `--user-data-dir`-sökvägar, till exempel `C:/Users/linus/AppData/Local/Temp/xx123`. Långa sökvägar spräcker Windows gräns på 260 tecken, och då ger Cache Storage felet "Entry already exists".

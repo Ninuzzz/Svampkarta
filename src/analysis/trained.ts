@@ -4,7 +4,7 @@
  * Testet görs alltid på GBIF-fynd.
  * Alla mått är medel över 5-faldig geografisk korsvalidering (mätt på platser modellen inte tränats på).
  * auc  = sannolikheten att en riktig fyndplats får högre poäng än ett annat svamp-/växtfynd (0,5 = slump, 1 = perfekt).
- * land = samma sak mot slumpade punkter på svensk mark.
+ * land = samma sak mot slumpade punkter på svensk mark (för bär viktade efter fyndens regioner).
  * hit  = andel fynd som hamnar i den bästa femtedelen av marken.
  * Forest = jämförelsemodellen "all skog är lika bra".
  */
@@ -376,40 +376,40 @@ export const TRAINED: Partial<Record<SpeciesId, TrainedInfo>> = {
     "extra": 0,
     "folds": 5,
     "better": 5,
-    "aucExpert": 0.637,
-    "aucTrained": 0.631,
-    "landExpert": 0.447,
-    "landTrained": 0.642,
-    "landForest": 0.529,
-    "hitExpert": 0.095,
-    "hitTrained": 0.37,
-    "hitForest": 0.175,
+    "aucExpert": 0.642,
+    "aucTrained": 0.648,
+    "landExpert": 0.521,
+    "landTrained": 0.617,
+    "landForest": 0.578,
+    "hitExpert": 0.152,
+    "hitTrained": 0.32,
+    "hitForest": 0.219,
     "params": {
       "tree": {
-        "tall": 0.693,
-        "gran": 0.815,
+        "tall": 0.72,
+        "gran": 0.45,
         "barrbland": 1,
-        "lovbarr": 0.711,
-        "triv": 0.79,
-        "adel": 0.533,
-        "fjall": 0.733,
-        "hygge": 0.134,
-        "oppen": 0.229
+        "lovbarr": 0.774,
+        "triv": 0.576,
+        "adel": 0.33,
+        "fjall": 0.66,
+        "hygge": 0.096,
+        "oppen": 0.22
       },
       "wet": {
         "dry": 1,
         "wet": 0.462
       },
       "soil": {
-        "sand": 0.729,
-        "moran": 0.259,
+        "sand": 1,
+        "moran": 0.475,
         "lera": 0.5,
-        "torv": 0.432,
-        "berg": 1
+        "torv": 0.495,
+        "berg": 0.9
       },
       "tpi": 0,
       "south": -0.13,
-      "openEdge": 0.1,
+      "openEdge": 0.05,
       "wetEdge": 0.05,
       "continuity": 0.3,
       "age": [
@@ -426,43 +426,43 @@ export const TRAINED: Partial<Record<SpeciesId, TrainedInfo>> = {
     "n": 1500,
     "extra": 0,
     "folds": 5,
-    "better": 5,
-    "aucExpert": 0.613,
-    "aucTrained": 0.627,
-    "landExpert": 0.502,
-    "landTrained": 0.564,
-    "landForest": 0.48,
-    "hitExpert": 0.217,
-    "hitTrained": 0.356,
-    "hitForest": 0.139,
+    "better": 4,
+    "aucExpert": 0.64,
+    "aucTrained": 0.642,
+    "landExpert": 0.555,
+    "landTrained": 0.584,
+    "landForest": 0.512,
+    "hitExpert": 0.296,
+    "hitTrained": 0.33,
+    "hitForest": 0.164,
     "params": {
       "tree": {
         "tall": 1,
-        "gran": 0.436,
-        "barrbland": 0.81,
-        "lovbarr": 0.396,
-        "triv": 0.22,
-        "adel": 0.05,
-        "fjall": 0.6,
-        "hygge": 0.363,
-        "oppen": 0.18
+        "gran": 0.297,
+        "barrbland": 0.88,
+        "lovbarr": 0.36,
+        "triv": 0.176,
+        "adel": 0.045,
+        "fjall": 0.66,
+        "hygge": 0.33,
+        "oppen": 0.297
       },
       "wet": {
-        "dry": 0.891,
+        "dry": 0.9,
         "wet": 0.495
       },
       "soil": {
-        "sand": 0.9,
-        "moran": 0.23,
-        "lera": 0.25,
-        "torv": 0.375,
+        "sand": 1,
+        "moran": 0.432,
+        "lera": 0.198,
+        "torv": 0.371,
         "berg": 1
       },
       "tpi": 0.25,
-      "south": 0.1,
-      "openEdge": 0.13,
+      "south": 0.05,
+      "openEdge": 0.08,
       "wetEdge": 0,
-      "continuity": 0.25,
+      "continuity": 0.15,
       "age": [
         12,
         70,
