@@ -11,13 +11,15 @@
 
 interface AgeFile {
   url: string
+  /** namn i Netlify-cachen (netlify/functions/age.mts) */
+  cdn: string
   offsetsAt: number // TileOffsets (LONG8)
   countsAt: number // TileByteCounts (LONG)
 }
 
 export const AGE_FILES = {
-  tall: { url: '/slu-age/PINE_AGE_2025.tif', offsetsAt: 3004295510, countsAt: 3001924942 },
-  gran: { url: '/slu-age/SPRUCE_AGE_2025.tif', offsetsAt: 3056309672, countsAt: 3053939104 },
+  tall: { url: '/slu-age/PINE_AGE_2025.tif', cdn: 'pine', offsetsAt: 3004295510, countsAt: 3001924942 },
+  gran: { url: '/slu-age/SPRUCE_AGE_2025.tif', cdn: 'spruce', offsetsAt: 3056309672, countsAt: 3053939104 },
 } satisfies Record<string, AgeFile>
 
 const TILE = 128
@@ -173,8 +175,13 @@ type Tile = Uint16Array | null
 type Want = { tx: number; ty: number; resolve: (t: Tile) => void; reject: (e: unknown) => void }
 
 const MEM = 600 // ≈ 20 MB avkodade rutor per worker
-const GAP = 48 * 1024 // slå ihop rutor med högst så här många okända byte emellan
-const MAX_RUN = 3 * 1024 * 1024
+/*
+ * Hämtningarna görs i fasta bitar – index för 8 rader i taget och data för 16
+ * rutor i en rad i taget – så att samma del av kartan alltid ger samma
+ * byte-spann. Då kan Netlifys CDN spara svaren åt alla besökare.
+ */
+const INDEX_ROWS = 8
+const CHUNK = 16
 
 const tiles = new Map<string, Promise<Tile>>()
 const pending = new Map<string, Want[]>() // per fil
@@ -183,6 +190,35 @@ let flushTimer = 0
 const tileKey = (file: AgeFile, tx: number, ty: number) => new URL(`${file.url}?t=${tx},${ty}`, self.location.href).href
 const rowKey = (file: AgeFile, ty: number) => new URL(`${file.url}?row=${ty}`, self.location.href).href
 const decode = (bytes: Uint8Array): Tile => (bytes.length ? new Uint16Array(lzw(bytes, TILE * TILE * 2).buffer, 0, TILE * TILE) : null)
+
+/** Samma bit begärs ofta av flera rutor samtidigt – dela på ett anrop. */
+const inflight = new Map<string, Promise<Uint8Array>>()
+function getRange(file: AgeFile, start: number, end: number): Promise<Uint8Array> {
+  const key = `${file.cdn}|${start}|${end}`
+  let p = inflight.get(key)
+  if (!p) {
+    p = getRangeOnce(file, start, end)
+    inflight.set(key, p)
+    p.catch(() => {}).finally(() => setTimeout(() => inflight.delete(key), 2000))
+  }
+  return p
+}
+
+/** På den publicerade sajten via den delade cachen, annars (eller om den inte svarar) direkt. */
+async function getRangeOnce(file: AgeFile, start: number, end: number): Promise<Uint8Array> {
+  if (import.meta.env.PROD) {
+    try {
+      const res = await fetch(`/age-range/${file.cdn}/${start}-${end}`)
+      if (res.ok) {
+        const buf = new Uint8Array(await res.arrayBuffer())
+        if (buf.length === end - start + 1) return buf
+      }
+    } catch {
+      /* faller tillbaka på direkt hämtning */
+    }
+  }
+  return fetchRange(file.url, start, end)
+}
 
 async function fetchRange(url: string, start: number, end: number, tries = 3): Promise<Uint8Array> {
   let res: Response
@@ -246,20 +282,15 @@ async function rowIndex(file: AgeFile, rows: number[], cache: Cache | null) {
       } else need.push(ty)
     }),
   )
-  // sammanhängande radspann hämtas tillsammans (TileOffsets = 8 byte, TileByteCounts = 4 byte per ruta)
-  need.sort((a, b) => a - b)
-  const spans: [number, number][] = []
-  for (const ty of need) {
-    const last = spans.at(-1)
-    if (last && ty === last[1] + 1) last[1] = ty
-    else spans.push([ty, ty])
-  }
+  // fasta grupper om 8 rader (TileOffsets = 8 byte, TileByteCounts = 4 byte per ruta)
+  const groups = [...new Set(need.map((ty) => Math.floor(ty / INDEX_ROWS)))]
+  const spans: [number, number][] = groups.map((g) => [g * INDEX_ROWS, Math.min(DOWN - 1, g * INDEX_ROWS + INDEX_ROWS - 1)])
   await Promise.all(
     spans.map(async ([r0, r1]) => {
       const i0 = r0 * ACROSS, i1 = r1 * ACROSS + ACROSS - 1
       const [offB, cntB] = await Promise.all([
-        fetchRange(file.url, file.offsetsAt + 8 * i0, file.offsetsAt + 8 * i1 + 7),
-        fetchRange(file.url, file.countsAt + 4 * i0, file.countsAt + 4 * i1 + 3),
+        getRange(file, file.offsetsAt + 8 * i0, file.offsetsAt + 8 * i1 + 7),
+        getRange(file, file.countsAt + 4 * i0, file.countsAt + 4 * i1 + 3),
       ])
       const offs = new DataView(offB.buffer, offB.byteOffset, offB.byteLength)
       const cnts = new DataView(cntB.buffer, cntB.byteOffset, cntB.byteLength)
@@ -307,28 +338,43 @@ async function load(file: AgeFile, list: Want[]) {
     } else items.push({ ...w, off, cnt })
   }
 
-  // 3. slå ihop rutor som ligger nära varandra i filen till få, större anrop
-  items.sort((a, b) => a.off - b.off)
-  const runs: Item[][] = []
+  // 3. hämta hela biten (16 rutor i samma rad) som varje ruta ligger i – alltid samma byte-spann
+  const chunks = new Map<string, Item[]>()
   for (const it of items) {
-    const run = runs.at(-1)
-    const end = run ? run.at(-1)!.off + run.at(-1)!.cnt : 0
-    if (run && it.off - end <= GAP && it.off + it.cnt - run[0].off <= MAX_RUN) run.push(it)
-    else runs.push([it])
+    const k = `${it.ty}|${Math.floor(it.tx / CHUNK)}`
+    chunks.set(k, [...(chunks.get(k) ?? []), it])
   }
   await Promise.all(
-    runs.map(async (run) => {
+    [...chunks.values()].map(async (wanted) => {
+      const ty = wanted[0].ty
+      const c0 = Math.floor(wanted[0].tx / CHUNK) * CHUNK
+      const r = idx.get(ty)!
+      const all: { tx: number; off: number; cnt: number }[] = []
+      for (let tx = c0; tx < Math.min(ACROSS, c0 + CHUNK); tx++) if (r.offs[tx] && r.cnts[tx]) all.push({ tx, off: r.offs[tx], cnt: r.cnts[tx] })
+      // Rutorna ligger nästan alltid i följd, men identiska rutor (t.ex. tomma) kan dela på en
+      // kopia någon annanstans i filen. Dela biten i sammanhängande delar och hämta de delar
+      // som innehåller efterfrågade rutor – delarna blir alltid desamma, så cachen träffar.
+      all.sort((a, b) => a.off - b.off)
+      const runs: { start: number; end: number; tiles: typeof all }[] = []
+      for (const t of all) {
+        const run = runs.at(-1)
+        if (run && t.off - run.end - 1 <= 64 * 1024) {
+          run.tiles.push(t)
+          run.end = Math.max(run.end, t.off + t.cnt - 1)
+        } else runs.push({ start: t.off, end: t.off + t.cnt - 1, tiles: [t] })
+      }
+      const parts = runs.filter((run) => run.tiles.some((t) => wanted.some((w) => w.tx === t.tx)))
       try {
-        const start = run[0].off
-        const end = Math.max(...run.map((r) => r.off + r.cnt)) - 1
-        const buf = await fetchRange(file.url, start, end)
-        for (const r of run) {
-          const bytes = buf.slice(r.off - start, r.off - start + r.cnt)
-          cache?.put(tileKey(file, r.tx, r.ty), new Response(bytes)).catch(() => {})
-          r.resolve(decode(bytes))
+        for (const part of await Promise.all(parts.map(async (pt) => ({ ...pt, buf: await getRange(file, pt.start, pt.end) })))) {
+          for (const t of part.tiles) {
+            const bytes = part.buf.slice(t.off - part.start, t.off - part.start + t.cnt)
+            cache?.put(tileKey(file, t.tx, ty), new Response(bytes)).catch(() => {})
+            const w = wanted.find((x) => x.tx === t.tx)
+            if (w) w.resolve(decode(bytes))
+          }
         }
       } catch (e) {
-        run.forEach((r) => r.reject(e))
+        wanted.forEach((w) => w.reject(e))
       }
     }),
   )
