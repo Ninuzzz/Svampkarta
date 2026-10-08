@@ -5,7 +5,7 @@ import { HOME } from '../lib/home'
 import { DANGER_LABEL, DEADLY, DIFFICULTY_LABEL, GUIDE, SAFETY_RULES, guideFor, type Danger, type GuideEntry, type LookAlike } from '../lib/guide'
 import { IMAGES } from '../lib/guideImages'
 import { SPECIES_BY_ID, type SpeciesId } from '../analysis/species'
-import { seasonState } from '../map/ChancePanel'
+import { seasonState } from '../analysis/seasonState'
 import { PageHeader, Segmented } from '../components/ui'
 import { SpeciesIcon } from '../components/SpeciesIcon'
 

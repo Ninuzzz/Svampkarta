@@ -6,13 +6,19 @@ import { TourProvider } from './components/Tour'
 import { useRoute } from './lib/router'
 import { BRAND } from './lib/brand'
 import Dashboard from './views/Dashboard'
-import PlacesView from './views/PlacesView'
-import JournalView from './views/JournalView'
-import RoutesView from './views/RoutesView'
-import GuideView from './views/GuideView'
 
-// Kartan (Leaflet) laddas först när den behövs
+// Startsidan laddas direkt, övriga vyer först när de öppnas (kartan med Leaflet är störst)
 const MapView = lazy(() => import('./views/MapView'))
+const GuideView = lazy(() => import('./views/GuideView'))
+const PlacesView = lazy(() => import('./views/PlacesView'))
+const JournalView = lazy(() => import('./views/JournalView'))
+const RoutesView = lazy(() => import('./views/RoutesView'))
+
+const loading = (
+  <div className="grid min-h-dvh place-items-center text-sage-600">
+    <SpinnerGap size={32} className="animate-spin" aria-label="Laddar" />
+  </div>
+)
 
 const TITLES = { hem: `${BRAND.name} – ${BRAND.tagline.toLowerCase()}`, karta: 'Karta', guide: 'Artguide', platser: 'Mina platser', dagbok: 'Dagbok', rutter: 'Rutter' } as const
 
@@ -44,21 +50,13 @@ export default function App() {
         <Nav current={view} />
         <div id="main" ref={main} tabIndex={-1} className="outline-none">
           {view === 'hem' && <Dashboard />}
-          {view === 'karta' && (
-            <Suspense
-              fallback={
-                <div className="grid min-h-dvh place-items-center text-sage-600">
-                  <SpinnerGap size={32} className="animate-spin" aria-label="Laddar kartan" />
-                </div>
-              }
-            >
-              <MapView />
-            </Suspense>
-          )}
-          {view === 'guide' && <GuideView />}
-          {view === 'platser' && <PlacesView />}
-          {view === 'dagbok' && <JournalView />}
-          {view === 'rutter' && <RoutesView />}
+          <Suspense fallback={loading}>
+            {view === 'karta' && <MapView />}
+            {view === 'guide' && <GuideView />}
+            {view === 'platser' && <PlacesView />}
+            {view === 'dagbok' && <JournalView />}
+            {view === 'rutter' && <RoutesView />}
+          </Suspense>
         </div>
       </TourProvider>
     </ToastProvider>

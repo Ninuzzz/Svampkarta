@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { Check, CaretDown, CloudRain, Drop, Thermometer, Sparkle } from '@phosphor-icons/react'
-import { SPECIES_MODELS, dayOfYear, seasonFactor, targetLabel, type SpeciesId, type Target } from '../analysis/species'
+import { SPECIES_MODELS, targetLabel, type Target } from '../analysis/species'
 import type { Hotspot } from '../analysis/protocol'
 import type { Weather } from '../analysis/weather'
 import { SpeciesIcon } from '../components/SpeciesIcon'
@@ -9,17 +9,7 @@ import { Cherries } from '@phosphor-icons/react'
 import { formatDistance, haversine } from '../lib/geo'
 import { hotspotTier } from './layers'
 import { TRAINED, TRAINING_DATE } from '../analysis/trained'
-
-export function seasonState(id: SpeciesId, lat: number) {
-  const sp = SPECIES_MODELS.find((s) => s.id === id)!
-  const doy = dayOfYear()
-  const f = seasonFactor(sp, doy, lat)
-  const peak = sp.peak + sp.latShift * (lat - 56)
-  if (f > 0.45) return { label: 'Säsong nu', tone: 'now' as const }
-  if (doy > peak && f > 0.12) return { label: 'Sen säsong', tone: 'soon' as const }
-  if (doy < peak && peak - doy < 45) return { label: 'Snart', tone: 'soon' as const }
-  return { label: doy < peak ? 'Ej än' : 'Slut för i år', tone: 'off' as const }
-}
+import { seasonState } from '../analysis/seasonState'
 
 const TONE = {
   now: 'bg-[#e4efc9] text-forest-700',
