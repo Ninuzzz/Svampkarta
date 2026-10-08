@@ -105,7 +105,7 @@ Gjort:
 - Google-appen är publicerad (In production, 2026-10-08). Branding har startsida och länk till `public/integritet.html`.
 
 Oklart eller kvar:
-- **Synken är inte testad med ett riktigt konto.** Den är verifierad med typkontroll, granskning och genomläsning. Be användaren testa på två enheter.
+- Synken är testad av användaren med ett riktigt Google-konto på två enheter (2026-10-08).
 
 ## Kända begränsningar och idéer
 
