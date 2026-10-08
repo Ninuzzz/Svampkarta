@@ -184,8 +184,17 @@ const tileKey = (file: AgeFile, tx: number, ty: number) => new URL(`${file.url}?
 const rowKey = (file: AgeFile, ty: number) => new URL(`${file.url}?row=${ty}`, self.location.href).href
 const decode = (bytes: Uint8Array): Tile => (bytes.length ? new Uint16Array(lzw(bytes, TILE * TILE * 2).buffer, 0, TILE * TILE) : null)
 
-async function fetchRange(url: string, start: number, end: number): Promise<Uint8Array> {
-  const res = await fetch(url, { headers: { Range: `bytes=${start}-${end}` } })
+async function fetchRange(url: string, start: number, end: number, tries = 3): Promise<Uint8Array> {
+  let res: Response
+  try {
+    res = await fetch(url, { headers: { Range: `bytes=${start}-${end}` } })
+    if (res.status >= 500) throw new Error(`Skogsålder: HTTP ${res.status}`)
+  } catch (e) {
+    // SLU:s server svarar ibland med tillfälliga fel – försök igen efter en kort paus
+    if (tries <= 1) throw e
+    await new Promise((r) => setTimeout(r, 400 * (4 - tries)))
+    return fetchRange(url, start, end, tries - 1)
+  }
   if (res.status !== 206 && res.status !== 200) throw new Error(`Skogsålder: HTTP ${res.status}`)
   const buf = new Uint8Array(await res.arrayBuffer())
   // servern ignorerade Range och skickade hela filen
