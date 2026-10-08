@@ -7,7 +7,7 @@ import { SpeciesIcon } from '../components/SpeciesIcon'
 import { Mushroom, Toggle } from '../components/ui'
 import { Cherries } from '@phosphor-icons/react'
 import { formatDistance, haversine } from '../lib/geo'
-import { hotspotTier } from './layers'
+import { hotspotTier } from './tier'
 import { TRAINED, TRAINING_DATE } from '../analysis/trained'
 import { seasonState } from '../analysis/seasonState'
 

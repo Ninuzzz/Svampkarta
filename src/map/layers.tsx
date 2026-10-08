@@ -7,6 +7,7 @@ import type { ForestFilter } from './nmd'
 import type { Kind } from '../lib/types'
 import type { ChanceOptions, Hotspot } from '../analysis/protocol'
 import { speciesSvg } from '../analysis/icons'
+import { hotspotTier, type HotspotTier } from './tier'
 import type { SpeciesId } from '../analysis/species'
 
 export type Basemap = 'ljus' | 'terrang' | 'flygfoto'
@@ -183,16 +184,8 @@ export function placeIcon(kind: Kind, selected = false, species: SpeciesId | nul
   })
 }
 
-export type HotspotTier = 'Bäst' | 'Bra' | 'Möjlig'
 
-/**
- * Toppens etikett jämfört med den bästa i vyn. "36 %" ser dåligt ut fast det
- * kan vara det bästa som finns just nu – procenten står kvar i detaljkortet.
- */
-export function hotspotTier(score: number, best: number): HotspotTier {
-  const r = best > 0 ? score / best : 0
-  return r >= 0.9 ? 'Bäst' : r >= 0.7 ? 'Bra' : 'Möjlig'
-}
+export { hotspotTier }
 
 const TIER_CLASS: Record<HotspotTier, string> = { Bäst: 'hs-best', Bra: 'hs-good', Möjlig: 'hs-maybe' }
 

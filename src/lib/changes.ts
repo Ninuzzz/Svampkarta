@@ -7,13 +7,8 @@ import { onDataChange } from './store'
  * Spåras bara på enheter där någon har loggat in för att synka.
  */
 
-export type SyncKind = 'place' | 'log' | 'route' | 'feedback'
-export const KINDS: { kind: SyncKind; field: 'places' | 'logs' | 'routes' | 'feedback' }[] = [
-  { kind: 'place', field: 'places' },
-  { kind: 'log', field: 'logs' },
-  { kind: 'route', field: 'routes' },
-  { kind: 'feedback', field: 'feedback' },
-]
+import { KINDS } from './syncKinds'
+export { KINDS, type SyncKind } from './syncKinds'
 
 export const SYNC_USER_KEY = 'mycel:sync-user'
 /** kontot som datan på den här enheten hör till (finns kvar efter utloggning) */

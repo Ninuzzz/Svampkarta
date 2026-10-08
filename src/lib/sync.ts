@@ -2,8 +2,9 @@ import { useSyncExternalStore } from 'react'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { actions, applyRemote } from './store'
 import { getPhoto, putPhoto } from './photos'
-import { KINDS, OWNER_KEY, SYNC_USER_KEY, loadChanges, onLocalChange, saveChanges, type SyncKind } from './changes'
+import { KINDS, OWNER_KEY, SYNC_USER_KEY, loadChanges, onLocalChange, saveChanges } from './changes'
 import type { AppData } from './types'
+import { mergeRemote, type AnyItem, type RemoteRow } from './merge'
 
 /*
  * Frivillig synk mellan enheter via Supabase (inloggning med e-post eller Google).
@@ -205,7 +206,6 @@ const saveMeta = (uid: string, m: Meta) => {
   }
 }
 
-type AnyItem = { id: string; demo?: boolean; updatedAt?: string; createdAt?: string; date?: string; photoIds?: string[] }
 const itemsOf = (d: AppData, field: (typeof KINDS)[number]['field']) => ((d[field] ?? []) as AnyItem[]).filter((x) => !x.demo)
 
 /**
@@ -301,8 +301,7 @@ async function doSync() {
 
   // 1. Hämta det som ändrats på servern, alla sidor, innan något tillämpas
   //    (med lite överlapp – dubbletter sorteras bort på ändringstid)
-  type Row = { kind: SyncKind; id: string; data: AnyItem | null; deleted: boolean; changed_at: string; updated_at: string }
-  const remote: Row[] = []
+  const remote: RemoteRow[] = []
   let since = meta.pulled ? new Date(Date.parse(meta.pulled) - 5000).toISOString() : '1970-01-01T00:00:00Z'
   for (;;) {
     const { data: rows, error } = await sb
@@ -312,48 +311,19 @@ async function doSync() {
       .order('updated_at')
       .limit(1000)
     if (error) throw new Error(error.message)
-    remote.push(...(rows as Row[]))
+    remote.push(...(rows as RemoteRow[]))
     if (rows.length) since = rows[rows.length - 1].updated_at
     if (rows.length < 1000) break
   }
 
   // Tillämpa mot det aktuella läget i ett svep – ingen väntan härifrån till sparandet,
   // så ändringar som gjordes medan hämtningen pågick finns med och skrivs inte över
-  const wantPhotos = new Set<string>()
+  let wantPhotos = new Set<string>()
   if (remote.length) {
     const c = loadChanges()
-    let data: AppData | null = null
-    for (const r of remote) {
-      if (!KINDS.some((k) => k.kind === r.kind)) continue
-      const key = `${r.kind}:${r.id}`
-      const remoteT = Date.parse(r.changed_at)
-      const localT = c.t[key] ?? c.del[key] ?? 0
-      if (remoteT > localT) {
-        data ??= structuredClone(actions.snapshot())
-        const field = KINDS.find((k) => k.kind === r.kind)!.field
-        const list = ((data[field] ?? []) as AnyItem[]).filter((x) => x.id !== r.id)
-        if (!r.deleted && r.data && typeof r.data === 'object') {
-          list.unshift({ ...r.data, id: r.id })
-          r.data.photoIds?.forEach((p) => wantPhotos.add(p))
-        }
-        ;(data as unknown as Record<string, AnyItem[]>)[field] = list
-        if (r.deleted) {
-          c.del[key] = remoteT
-          delete c.t[key]
-        } else {
-          c.t[key] = remoteT
-          delete c.del[key]
-        }
-      }
-      if (remoteT >= localT) meta.sent[key] = Math.max(meta.sent[key] ?? 0, remoteT)
-    }
-    if (data) {
-      // nyast först, som appen själv sorterar
-      data.places.sort((a, b) => (b.updatedAt ?? '').localeCompare(a.updatedAt ?? ''))
-      data.logs.sort((a, b) => b.date.localeCompare(a.date))
-      data.routes.sort((a, b) => b.date.localeCompare(a.date))
-      applyRemote(data)
-    }
+    const merged = mergeRemote(actions.snapshot(), c, meta.sent, remote)
+    wantPhotos = merged.wantPhotos
+    if (merged.data) applyRemote(merged.data)
     saveChanges(c)
     meta.pulled = remote[remote.length - 1].updated_at
     saveMeta(user.id, meta)
