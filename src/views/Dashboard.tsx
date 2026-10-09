@@ -95,7 +95,7 @@ export default function Dashboard() {
   return (
     <>
       {/* ---------- Hero ---------- */}
-      <section className="mx-auto grid max-w-6xl items-center gap-12 px-4 pt-10 pb-16 sm:px-6 lg:grid-cols-[1.05fr_1fr] lg:gap-14 lg:pt-36 lg:pb-24">
+      <section className="mx-auto grid max-w-6xl items-center gap-8 px-4 pt-8 pb-12 sm:px-6 lg:grid-cols-[1.05fr_1fr] lg:gap-14 lg:pt-36 lg:pb-24">
         <div className="rise">
           <p className="eyebrow">
             {greeting()} · {MONTHS[month - 1]} · {HOME.name}
@@ -111,13 +111,13 @@ export default function Dashboard() {
             {BRAND.name} läser av skog, jordart, terräng och väder och visar var chansen är störst att hitta svamp och bär. Dina egna ställen stannar hemliga hos
             dig.
           </p>
-          <div className="mt-8 flex flex-wrap gap-3">
-            <a href={href('karta')} className="btn btn-primary !min-h-13 !px-7 !text-base">
+          <div className="mt-8 grid gap-3 sm:flex sm:flex-wrap">
+            <a href={href('karta')} className="btn btn-primary !min-h-13 justify-center !px-7 !text-base">
               <Sparkle size={20} weight="fill" className="text-amber" /> Hitta svamp nu
             </a>
             <button
               type="button"
-              className="btn !min-h-13 border border-forest-700/80 bg-white/60 !px-6 !text-base text-forest-800 hover:bg-white"
+              className="btn !min-h-13 justify-center border border-forest-700/80 bg-white/60 !px-6 !text-base text-forest-800 hover:bg-white"
               onClick={() => setLogOpen(true)}
             >
               <Plus size={18} weight="bold" /> Logga en runda
@@ -130,11 +130,25 @@ export default function Dashboard() {
           >
             <Question size={18} weight="bold" /> Så funkar {BRAND.name} – ta guiden
           </button>
+
+          {/* Mobil: dagens läge direkt under knapparna, så att det syns utan att scrolla */}
+          <a href={href('karta')} className="glass-strong mt-6 flex items-center gap-3 !rounded-3xl p-3 lg:hidden" aria-label={`Svampväder idag ${idx ?? ''}, bäst just nu: ${inSeason.slice(0, 3).map(({ s }) => s.name).join(', ')} – öppna kartan`}>
+            <WeatherRing idx={idx} size="sm" />
+            <span className="min-w-0 flex-1">
+              <span className="block text-xs font-semibold text-ink-muted">Svampväder idag</span>
+              <span className="block truncate text-sm font-bold">{weather ? weather.verdict.split(' – ')[0] : 'Hämtar väder…'}</span>
+            </span>
+            <span className="flex -space-x-2" aria-hidden="true">
+              {inSeason.slice(0, 3).map(({ s }) => (
+                <SpeciesIcon key={s.id} id={s.id} size={22} className="size-9 rounded-full bg-white ring-2 ring-bone" />
+              ))}
+            </span>
+          </a>
         </div>
 
         {/* Bildkort med svävande glas-widgets */}
         <div className="rise relative mx-auto w-full max-w-[520px] lg:max-w-none" style={{ animationDelay: '120ms' }}>
-          <div className="relative aspect-[4/3.6] overflow-hidden rounded-[2.25rem] shadow-[0_40px_80px_-40px_rgb(20_30_0/0.55)]">
+          <div className="relative aspect-[16/10] overflow-hidden rounded-[2rem] shadow-[0_40px_80px_-40px_rgb(20_30_0/0.55)] lg:aspect-[4/3.6] lg:rounded-[2.25rem]">
             <img
               src="/img/hero-1000.webp"
               srcSet="/img/hero-1000.webp 1000w, /img/hero-2000.webp 2000w"
@@ -148,17 +162,16 @@ export default function Dashboard() {
             <div className="absolute inset-0 bg-gradient-to-t from-forest-900/25 via-transparent to-transparent" aria-hidden="true" />
           </div>
 
-          <div className="glass-strong absolute -top-6 -left-2 flex items-center gap-3 !rounded-3xl p-3 pr-5 sm:top-8 sm:-left-8">
-            <div className="grid size-14 shrink-0 place-items-center rounded-full" style={{ background: `conic-gradient(#e0662b ${(idx ?? 0) * 3.6}deg, #f5edd3 0)` }} aria-hidden="true">
-              <span className="grid size-11 place-items-center rounded-full bg-white text-sm font-bold tabular">{idx ?? '–'}</span>
-            </div>
+          {/* dator: svävande glaskort över bilden (mobilen har raden under knapparna) */}
+          <div className="glass-strong absolute top-8 -left-8 hidden items-center gap-3 !rounded-3xl p-3 pr-5 lg:flex">
+            <WeatherRing idx={idx} />
             <div>
               <p className="text-xs font-semibold text-ink-muted">Svampväder idag</p>
               <p className="max-w-44 text-sm leading-snug font-bold">{weather ? weather.verdict.split(' – ')[0] : 'Hämtar väder…'}</p>
             </div>
           </div>
 
-          <div className="glass-strong absolute -right-2 -bottom-8 w-[min(260px,78%)] !rounded-3xl p-4 sm:-right-6">
+          <div className="glass-strong absolute -right-6 -bottom-8 hidden w-[min(260px,78%)] !rounded-3xl p-4 lg:block">
             <p className="text-xs font-semibold text-ink-muted">Bäst just nu runt {HOME.name}</p>
             <ul className="mt-2 grid gap-1.5">
               {inSeason.slice(0, 3).map(({ s }) => (
@@ -377,5 +390,16 @@ function CollectionLink({ label }: { label: string }) {
       {label}
       <ArrowRight size={16} weight="bold" className="transition-transform duration-300 group-hover:translate-x-1" />
     </span>
+  )
+}
+
+/** Svampvädrets index 0–100 som en ring. */
+function WeatherRing({ idx, size = 'md' }: { idx: number | null; size?: 'sm' | 'md' }) {
+  const outer = size === 'sm' ? 'size-11' : 'size-14'
+  const inner = size === 'sm' ? 'size-8 text-xs' : 'size-11 text-sm'
+  return (
+    <div className={`grid ${outer} shrink-0 place-items-center rounded-full`} style={{ background: `conic-gradient(#e0662b ${(idx ?? 0) * 3.6}deg, #f5edd3 0)` }} aria-hidden="true">
+      <span className={`grid ${inner} place-items-center rounded-full bg-white font-bold tabular`}>{idx ?? '–'}</span>
+    </div>
   )
 }
