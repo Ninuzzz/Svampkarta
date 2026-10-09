@@ -44,7 +44,7 @@ function isGridBlock(p: URLSearchParams, src: string) {
   return Math.abs(bx - Math.round(bx)) < 1e-6 && Math.abs(by - Math.round(by)) < 1e-6
 }
 
-const ALLOWED = ['service', 'version', 'request', 'layers', 'styles', 'format', 'transparent', 'srs', 'bbox', 'width', 'height', 'format_options']
+export const ALLOWED = ['service', 'version', 'request', 'layers', 'styles', 'format', 'transparent', 'srs', 'bbox', 'width', 'height', 'format_options']
 
 export async function wms(req: Request) {
   const url = new URL(req.url)
@@ -62,7 +62,6 @@ export async function wms(req: Request) {
   return new Response(res.body, {
     headers: {
       'content-type': type,
-      'access-control-allow-origin': '*',
       // webbläsaren: en vecka (Cloudflares cache sparar ett år, se cache.ts)
       'cache-control': 'public, max-age=604800',
     },

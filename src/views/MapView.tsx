@@ -129,8 +129,15 @@ export default function MapView() {
   const toast = useToast()
   const [prefs, setPrefs] = useState<MapPrefs>(loadPrefs)
   const [map, setMap] = useState<L.Map | null>(null)
-  const [zoom, setZoom] = useState(HOME.zoom)
-  const [center, setCenter] = useState<LatLng>({ lat: HOME.lat, lng: HOME.lng })
+  // en länk med lat/lng öppnar kartan direkt där, i stället för hemma först (sparar kartbilder)
+  const [startView] = useState(() => {
+    const lat = Number(params.get('lat')), lng = Number(params.get('lng'))
+    return params.has('lat') && Number.isFinite(lat) && Number.isFinite(lng)
+      ? { center: [lat, lng] as [number, number], zoom: Number(params.get('z')) || 14 }
+      : { center: [HOME.lat, HOME.lng] as [number, number], zoom: HOME.zoom }
+  })
+  const [center, setCenter] = useState<LatLng>({ lat: startView.center[0], lng: startView.center[1] })
+  const [zoom, setZoom] = useState(startView.zoom)
   const [bounds, setBounds] = useState<L.LatLngBounds | null>(null)
   const [panelOpen, setPanelOpen] = useState(false)
   const [area, setArea] = useState<AreaSelection | null>(null)
@@ -341,7 +348,7 @@ export default function MapView() {
 
   return (
     <div className="relative h-dvh w-full overflow-hidden">
-      <MapContainer center={[HOME.lat, HOME.lng]} zoom={HOME.zoom} minZoom={4} maxZoom={19} zoomControl={false} className="isolate size-full" ref={setMap} worldCopyJump>
+      <MapContainer center={startView.center} zoom={startView.zoom} minZoom={4} maxZoom={19} zoomControl={false} className="isolate size-full" ref={setMap} worldCopyJump>
         <TileLayer key={prefs.basemap} url={base.url} attribution={base.attribution} maxNativeZoom={base.maxNativeZoom} maxZoom={19} subdomains={base.subdomains ?? 'abc'} className={base.className} crossOrigin="anonymous" />
         {base.detail && <TileLayer key={`${prefs.basemap}-detail`} url={base.detail.url} minZoom={base.detail.minZoom} maxZoom={19} crossOrigin="anonymous" />}
         {prefs.hillshade && (

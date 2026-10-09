@@ -12,9 +12,17 @@ export interface PagesContext {
 
 const YEAR = 31536000
 
-export async function cached(ctx: PagesContext, handler: (req: Request) => Promise<Response>) {
+/**
+ * Cachenyckeln byggs bara av sökvägen och de tillåtna parametrarna (i fast
+ * ordning). Annars kunde vem som helst lägga till en påhittad parameter, få
+ * en ny nyckel varje gång och låta varje anrop gå vidare till källservrarna.
+ */
+export async function cached(ctx: PagesContext, handler: (req: Request) => Promise<Response>, params: readonly string[] = []) {
   const cache = (caches as unknown as { default: Cache }).default
-  const key = new Request(new URL(ctx.request.url).toString(), { method: 'GET' })
+  const url = new URL(ctx.request.url)
+  const q = new URLSearchParams()
+  for (const k of [...params].sort()) if (url.searchParams.has(k)) q.set(k, url.searchParams.get(k)!)
+  const key = new Request(`${url.origin}${url.pathname}${q.size ? `?${q}` : ''}`, { method: 'GET' })
   const hit = await cache.match(key)
   if (hit) return hit
 

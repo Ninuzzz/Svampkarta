@@ -265,8 +265,9 @@ export function AreaSheet({
   )
 }
 
+/** Modellens bästa platser ligger oftast kring 30–60 %, så gränserna sitter lägre än man kanske tror. */
 export function ChanceBadge({ v }: { v: number }) {
   const [label, cls] =
-    v >= 0.7 ? ['Hög', 'bg-[#fde3cf] text-[#9a3412]'] : v >= 0.45 ? ['Medel', 'bg-chanterelle-soft text-[#7a4f0a]'] : ['Låg', 'bg-sand-100 text-ink-muted']
+    v >= 0.5 ? ['Hög', 'bg-chance-soft text-chance-ink'] : v >= 0.3 ? ['Medel', 'bg-[#efe6fb] text-[#5b2a91]'] : ['Låg', 'bg-sand-100 text-ink-muted']
   return <span className={`rounded-full px-2.5 py-1 text-xs font-bold ${cls}`}>{label}</span>
 }
