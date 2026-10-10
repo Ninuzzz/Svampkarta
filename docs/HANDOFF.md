@@ -10,7 +10,7 @@ Användarna kan spara egna platser, dagbok och rutter.
 
 - **Live:** https://mycel-svampkarta.pages.dev (Cloudflare Pages, manuell deploy, se nedan). Flyttad från Netlify 2026-10-08 när Netlifys gratiskrediter tog slut; den gamla adressen mycel-svampkarta.netlify.app visar en äldre version så länge Netlify håller den uppe.
 - **Kod:** https://github.com/Ninuzzz/Svampkarta (gren `main`)
-- **Hemkommun:** Landskrona (`src/lib/home.ts`, kommunkod 1282)
+- **Hemområde:** väljs av besökaren (se "Hemområde" nedan). Landskrona (kommunkod 1282) är utvecklarens eget och har handinställda startvyer.
 - **Språk i UI och kodkommentarer:** svenska. Användaren vill ha korta, handlingsinriktade svar på svenska.
 
 ## Publicera
@@ -56,8 +56,11 @@ npm run deploy
 **Offline / PWA**
 
 - Service workern är `src/sw.js`. Den kopieras till `dist/sw.js` med en filista som ett plugin i `vite.config.ts` fyller i.
-- Knappen "Spara området för offline" finns i områdeskortet.
+- Knappen "Spara området för offline" finns i områdeskortet (`src/lib/offline.ts`). Den räknar igenom chanskartans rutor (zoom 13) för de valda kommunerna, så att källdatan hamnar i cachen, och hämtar de rapporterade fynden för området.
 - Bakgrundskartan laddas medvetet inte ner i förväg, eftersom Esri och OSM förbjuder det i sina villkor.
+- **Enkel karta** (`src/map/SimpleLayer.ts`, tillagd 2026-10-10): ritas i webbläsaren ur det som analysen ändå hämtar – marktäcke (NMD, zoom 13) och vektorrutor från OpenFreeMap (zoom 14: vägar, stigar, vattendrag, ortnamn). Den ligger i en egen kartyta under kartbilderna (z-index 150) och visas när den är vald som bakgrund ("Enkel"), när webbläsaren säger att nätet saknas, eller när en kartbild inte gått att hämta (`baseFailed` i `MapView`: i skogen har telefonen ofta "nät" utan att något laddar). En kartbild som inte laddats är osynlig, så den enkla kartan syns precis där flygfotot saknas. Koden laddas först när den behövs (egen fil, ca 5 kB).
+- **Analys av en punkt utan nät**: `inspectPoint` i workern använder zoom 13 (den sparade) när nätet saknas eller zoom 14 inte svarat inom 5 s.
+- **Prova offline på riktigt**: sidans offline-läge i Chrome/puppeteer stänger inte av service workerns nät. Gör i stället så här: kör `pages-local`, spara området med en fast webbläsarprofil, stäng servern, och starta webbläsaren igen med samma profil och `--host-resolver-rules=MAP * ~NOTFOUND`. Kontrollerat 2026-10-10: appen startar, den enkla kartan ritas i delar av kommunen som aldrig visats, toppar och fynd syns, och ett tryck på kartan ger områdesbladet.
 
 **Synk (frivillig, Supabase)**
 
@@ -119,6 +122,15 @@ Gjort:
 Oklart eller kvar:
 - Synken är testad av användaren med ett riktigt Google-konto på två enheter (2026-10-08).
 
+## Hemområde
+
+Appen utgår inte längre från Landskrona (ändrat 2026-10-10). Besökaren väljer själv en kommun, och valet sparas bara i webbläsaren (`mycel:home`).
+
+- **Lagring** (`src/lib/home.ts`): `useHome()` ger `undefined` medan det tas reda på, `null` om inget är valt, annars kommunens id, namn, mittpunkt och utbredning. Den som använde appen tidigare har kommuner sparade i `mycel:map`: den första blir hemområdet utan att någon frågar.
+- **Frågan** (`src/components/HomePicker.tsx`): sök bland de 290 kommunerna, eller "Använd min position" – kommunen räknas ut i webbläsaren ur gränserna, positionen skickas inte någonstans. Den visas på startsidan tills ett område är valt (i stället för svampvädret), och går att öppna igen genom att trycka på ortnamnet överst. På kartan visas samma fråga över en Sverigekarta om inget område är valt; lägger man till en kommun på kartan blir den hemområdet.
+- **Vad som följer hemområdet**: startsidans väder och "bäst just nu", säsongen i artguiden, kartans första område och startvy, och sökningens prioriterade område (en grov ruta på halva grader, inte kartvyn).
+- **Kartans startvy** (`src/lib/homeview.ts`, ren kod med tester): en länk med position går först; annars den senast visade vyn om den är högst 6 timmar gammal (`mycel:view`); annars hemområdet – hela kommunen i bild om det går, men aldrig längre ut än där chansen visas och aldrig närmare än zoom 13, med mitten flyttad åt höger om panelen på bred skärm. Att byta hemområde på startsidan nollställer den senaste vyn.
+
 ## Rapporterade fynd (GBIF)
 
 Prickar på chanskartan med fynd som rapporterats öppet (tillagt 2026-10-10). Växeln "Rapporterade fynd" finns under Kartlager och är på som standard (`showFinds` i `mycel:map`).
@@ -131,7 +143,7 @@ Prickar på chanskartan med fynd som rapporterats öppet (tillagt 2026-10-10). V
 
 ## Ändringar efter granskningen 2026-10-10
 
-- **Startvy på mobil**: `HOME.narrow` (`src/lib/home.ts`) är en fast vy för smal skärm när bara hemkommunen är vald – ett zoomsteg längre ut och förskjuten inåt land, så att tre toppar syns i stället för en. Datorn och länkar med position är orörda. Automatisk inramning (kommungränsen, eller de bästa topparna) provades och gav sämre eller tomma vyer: gränsen går långt ut i Öresund, och för andra kommuner hamnade zoomen under `chanceMin`.
+- **Startvy på mobil**: Landskrona har en fast vy för smal skärm (`TUNED` i `src/lib/homeview.ts`) – ett zoomsteg längre ut och förskjuten inåt land, så att tre toppar syns i stället för en. Automatisk inramning (kommungränsen, eller de bästa topparna) provades och gav sämre eller tomma vyer: gränsen går långt ut i Öresund, och för andra kommuner hamnade zoomen under `chanceMin`.
 - **Områdesbladet**: chanskortet står först, före Information. Trycker man på en topp visar bladet toppens art och siffra (`spot` i `AreaSheet`), samma som på kartan; punktens eget värde står på en rad under när det skiljer sig. Toppens siffra är snittet inom ca 35 m (`hotspots()` i `worker.ts`), "Varför?" förklarar punktens värde. Chansstapeln hade en ogiltig CSS-bredd ("54 %" med mellanslag) och var alltid full – lagad.
 - **Guiden** öppnas inte längre av sig själv efter 0,9 s (den lade sig över knappen man var på väg mot). Den nås från länken på startsidan och frågetecknet i menyn. `mycel:tour-done` används inte längre.
 - **Service workern** (`src/sw.js`): allt i `PRECACHE` tas från cachen (förr bara fyra mappar, så ikonen och manifestet saknades utan nät). `/fynd/` sparas i `mycel-fynd-v1` (nätet först, högst 300 rutor), så prickarna finns kvar utan nät där man redan tittat.
