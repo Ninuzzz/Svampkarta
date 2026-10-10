@@ -14,6 +14,7 @@ export const IMAGES: Record<string, GuideImage> = {
   taggsvamp: { src: "/guide/taggsvamp.webp", page: "https://commons.wikimedia.org/wiki/File:Hedgehog_fungi2.jpg", artist: "D J Kelly", license: "Public domain" },
   farticka: { src: "/guide/farticka.webp", page: "https://commons.wikimedia.org/wiki/File:Albatrellus-ovinus.jpg", artist: "Bernypisa", license: "CC BY-SA 3.0" },
   smorsopp: { src: "/guide/smorsopp.webp", page: "https://commons.wikimedia.org/wiki/File:Suillus_luteus_475376.jpg", artist: "walt sturgeon (Mycowalt)", license: "CC BY-SA 3.0" },
+  champinjon: { src: "/guide/champinjon.webp", page: "https://commons.wikimedia.org/wiki/File:Agaricus_campestris_051011A.JPG", artist: "Strobilomyces", license: "CC BY-SA 3.0" },
   blabar: { src: "/guide/blabar.webp", page: "https://commons.wikimedia.org/wiki/File:Vaccinium_myrtillus_-_Bilberry_03.jpg", artist: "Zeynel Cebeci", license: "CC BY-SA 4.0" },
   lingon: { src: "/guide/lingon.webp", page: "https://commons.wikimedia.org/wiki/File:Vaccinium_vitis-idaea_20060824_003.jpg", artist: "Jonas Bergsten", license: "Public domain" },
   hjortron: { src: "/guide/hjortron.webp", page: "https://commons.wikimedia.org/wiki/File:Rubus_chamaemorus,_from_Troms%C3%B8,_August_2020.jpeg", artist: "Moravice", license: "CC BY-SA 4.0" },
