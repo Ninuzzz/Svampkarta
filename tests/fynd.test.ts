@@ -1,7 +1,7 @@
 // Rapporterade fynd: urval, rutor och att inget utöver fem fält släpps igenom.
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { FYND_ZOOM, TAXA, gbifUrl, parseSet, tileAt, tileBox, tilesFor, toFind, validTile } from '../src/lib/fynd.ts'
+import { FYND_ZOOM, TAXA, gbifUrl, isRecent, mergeFinds, parseSet, tileAt, tileBox, tilesFor, toFind, validTile } from '../src/lib/fynd.ts'
 import { EXPERT_MODELS } from '../src/analysis/species.ts'
 
 // en post så som GBIF skickar den (förkortad), med fält som inte får följa med
@@ -91,3 +91,18 @@ test('frågan till GBIF har filtren för licens, position och år samt rätt art
   assert.deepEqual(p.getAll('taxonKey').map(Number).sort(), parseSet('svamp')!.map((id) => TAXA[id].key).sort())
   assert.equal(p.get('decimalLatitude'), '55.60000,56.14000')
 })
+
+test('fynd från flera rutor slås ihop utan dubbletter, nyast först, med tak', () => {
+  const f = (id: number, year: number) => ({ id, lat: 56, lng: 13, year, sp: 'kantarell' })
+  const r = mergeFinds([[f(1, 2001), f(2, 2024)], [f(2, 2024), f(3, 2015)]], 2)
+  assert.equal(r.total, 3)
+  assert.deepEqual(r.finds.map((x) => x.id), [2, 3])
+  assert.deepEqual(mergeFinds([], 10), { finds: [], total: 0 })
+})
+
+test('nytt fynd = högst tio år gammalt', () => {
+  assert.ok(isRecent(2026, 2026))
+  assert.ok(isRecent(2016, 2026))
+  assert.ok(!isRecent(2015, 2026))
+})
+

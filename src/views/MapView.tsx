@@ -8,6 +8,7 @@ import { useRoute } from '../lib/router'
 import { getCurrentPosition, haversine } from '../lib/geo'
 import { BASEMAPS, ChanceOverlay, ForestOverlay, HILLSHADE_URL, feedbackIcon, hotspotIcon, hotspotTier, meIcon, pickIcon, placeIcon, type Basemap } from '../map/layers'
 import { CLASSES, DEFAULT_FILTER, LEGEND_ITEMS, colorFor, type ForestFilter } from '../map/nmd'
+import { FindsLayer, type FindsInfo } from '../map/FindsLayer'
 import { DualRange, KindBadge, Mushroom, RangeSlider, Segmented, Toggle, YieldDots } from '../components/ui'
 import { PlaceForm, type PlaceDraft } from '../components/PlaceForm'
 import { LogForm } from '../components/LogForm'
@@ -53,6 +54,8 @@ interface MapPrefs {
    * labelPct) så att alla får procent som standard, även de som sparat valet.
    */
   labelWords: boolean
+  /** visa rapporterade fynd (GBIF) som prickar på chanskartan */
+  showFinds: boolean
 }
 
 const PREFS_KEY = 'mycel:map'
@@ -72,6 +75,7 @@ const DEFAULT_PREFS: MapPrefs = {
   areas: [HOME.kommun],
   wholeView: false,
   labelWords: false,
+  showFinds: true,
 }
 
 function loadPrefs(): MapPrefs {
@@ -84,6 +88,20 @@ function loadPrefs(): MapPrefs {
 }
 
 const FOREST_MIN_ZOOM = 9
+
+/** Statusraden för lagret med rapporterade fynd. De flesta plockare rapporterar inte – ett tomt område betyder inte att inget växer där. */
+function findsText(i: FindsInfo) {
+  if (i.state === 'laddar') return 'Hämtar fynd …'
+  if (i.state === 'zooma') return 'Zooma in för att se fynd'
+  if (i.state === 'fel') return 'Fynden kunde inte hämtas just nu'
+  // säg öppet när en del av vyn inte gick att hämta – annars ser kartan komplett ut fast fynd saknas
+  const gap = i.missing ? ' En del av trakten kunde inte hämtas än.' : ''
+  if (!i.total) return i.missing ? 'Fynden kunde inte hämtas helt än' : 'Inga rapporterade fynd i trakten'
+  // rutorna som hämtas är större än kartvyn: säg vad som faktiskt syns
+  if (!i.inView) return `Inga fynd i vyn – ${i.total} i trakten runt omkring.${gap}`
+  const cap = i.shown < i.total ? ` Bara de ${i.shown} senaste i trakten ritas.` : ''
+  return `${i.inView} fynd i vyn, rapporterade öppet via GBIF.${cap}${gap}`
+}
 
 /** Slå ihop toppar från flera rutor: starkast först, inga två närmare än 300 m. */
 function mergeSpots(all: Hotspot[], bounds: L.LatLngBounds | null, zoom: number) {
@@ -143,6 +161,7 @@ export default function MapView() {
   const [area, setArea] = useState<AreaSelection | null>(null)
   /** storleken på det markerade chansområdet (ha), null om man klickat utanför */
   const [chanceHa, setChanceHa] = useState<number | null>(null)
+  const [findsInfo, setFindsInfo] = useState<FindsInfo>({ state: 'zooma', inView: 0, shown: 0, total: 0, missing: 0 })
   const [areaPlace, setAreaPlace] = useState<string | null>(null)
   const [selected, setSelected] = useState<Place | null>(null)
   const [me, setMe] = useState<LatLng | null>(null)
@@ -382,6 +401,8 @@ export default function MapView() {
           )}
         </Pane>
 
+        {chanceTab && prefs.showFinds && <FindsLayer target={prefs.target} bounds={bounds} onInfo={setFindsInfo} />}
+
         {visibleRoutes.map((r) => (
           <Polyline key={r.id} positions={r.points} pathOptions={{ color: '#fffbeb', weight: 4, opacity: 0.95, lineCap: 'round', lineJoin: 'round', dashArray: '1 8' }} />
         ))}
@@ -455,6 +476,7 @@ export default function MapView() {
         map={map}
         open={panelOpen}
         setOpen={setPanelOpen}
+        findsText={findsText(findsInfo)}
         chance={
           <>
             {/* viktigast först: vad du letar efter, var, och resultatet */}
@@ -724,6 +746,7 @@ function Panel({
   map,
   open,
   setOpen,
+  findsText,
   chance,
 }: {
   prefs: MapPrefs
@@ -732,6 +755,8 @@ function Panel({
   map: L.Map | null
   open: boolean
   setOpen: (v: boolean) => void
+  /** statusrad för lagret med rapporterade fynd */
+  findsText: string
   chance: ReactNode
 }) {
   const f = prefs.filter
@@ -867,6 +892,14 @@ function Panel({
       />
       <Toggle label="Mina platser" checked={prefs.showPlaces} onChange={(showPlaces) => setPrefs((p) => ({ ...p, showPlaces }))} />
       <Toggle label="Mina rutter" checked={prefs.showRoutes} onChange={(showRoutes) => setPrefs((p) => ({ ...p, showRoutes }))} />
+      {prefs.tab === 'chans' && (
+        <Toggle
+          label="Rapporterade fynd"
+          description={prefs.showFinds ? findsText : 'Fynd som andra har rapporterat öppet (GBIF)'}
+          checked={prefs.showFinds}
+          onChange={(showFinds) => setPrefs((p) => ({ ...p, showFinds }))}
+        />
+      )}
       <p className="text-[12px] leading-relaxed text-ink-muted">
         Data: NMD 2023 (Naturvårdsverket), Jordarter (SGU), SLU skogsålder 2025 (CC BY 4.0), fynd från GBIF/Artportalen, Terrain Tiles (AWS), Open-Meteo, OpenStreetMap, Esri. Allt öppet och gratis.
       </p>

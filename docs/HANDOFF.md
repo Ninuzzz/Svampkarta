@@ -119,6 +119,16 @@ Gjort:
 Oklart eller kvar:
 - Synken är testad av användaren med ett riktigt Google-konto på två enheter (2026-10-08).
 
+## Rapporterade fynd (GBIF)
+
+Prickar på chanskartan med fynd som rapporterats öppet (tillagt 2026-10-10). Växeln "Rapporterade fynd" finns under Kartlager och är på som standard (`showFinds` i `mycel:map`).
+
+- **Urval** (`src/lib/fynd.ts`, ren kod med tester): Sverige, position inom 100 m, år 1990 och framåt, licens CC0 eller CC BY. Av varje post behålls bara id, position, år och art (`toFind`). Rapportörens namn och fritext om platsen läses aldrig. Artnycklarna i `TAXA` måste ha samma art-id:n som `EXPERT_MODELS` (ett test kontrollerar det) – lägg till nyckeln när en art läggs till.
+- **Server** (`server/fynd.ts`, `/fynd/<urval>/<z>/<x>/<y>`): urval är `svamp`, `bar` eller ett art-id; bara rutor på zoom 10 i Sverige godtas. Bläddrar hos GBIF (300 per sida, högst 3 sidor per ruta; `complete: false` om det finns fler) och försöker igen vid 429 eller serverfel. Cloudflares cache sparar svaret en vecka, webbläsaren ett dygn.
+- **Klient** (`src/map/finds.ts`, `src/map/FindsLayer.tsx`): på den publicerade sajten hämtas rutorna via `/fynd`, i utvecklingsläge direkt från GBIF, en ruta i taget (GBIF svarar 429 på många samtidiga anrop). Rutor som inte gick att hämta hämtas igen efter 5 s (två försök) och statusraden säger att något saknas. Statusraden räknar fynden i kartvyn, inte i de hämtade rutorna. På pekskärm har varje prick en osynlig träffyta med radie 16 px.
+- **Utseende**: krämvit prick med skogsgrön ring; fynd äldre än tio år ritas svagare. Magenta är reserverat för chansen. Rutan vid tryck ligger uttryckligen i `popupPane` (annars ritas prickar ovanpå den).
+- **Att känna till**: fynden är glesa lokalt. Runt Landskrona finns nästan inga svampfynd (6 i hemrutan, alla vid kommunens norra kant); mot Söderåsen finns hundratals. De flesta plockare rapporterar inte, så en tom yta betyder inte att inget växer där. Fynden i träningsdatan (`scripts/train/data/occurrences.json`) är ett slumpurval och används inte av lagret.
+
 ## Kända begränsningar och idéer
 
 - **Ängschampinjon (tillagd 2026-10-10)** är den enda arten som växer på öppen mark. Den har `openLand: true` (undantag från spärren "öppen mark bara i skogsbygd" i `score()`, `model.ts`) och `soloOnly: true` (ingår inte i "Alla svampar", i svampväder-indexet eller i gruppens "hittade inget"; se `targetSpecies` i `species.ts`). Vikterna är expertvärden, inte tränade – inga fynd är hämtade för arten. Begränsning: NMD-klassen "Öppen mark" (kod 41, tio teckenfärger hopslagna i `nmdcodes.ts`) rymmer betesmark, strandäng, hed och hällmark, så lagret visar öppen gräsmark i allmänhet; runt Landskrona dominerar strandängarna längs kusten. Bästa marktyp måste ha vikt 1: ett försök att sänka `tree.oppen` till 0,45 dolde nästan alla områden, eftersom visningsgränsen (`SHOW` i `worker.ts`) räknas mot ett tak utan marktypsvikterna. En terrängjustering (`tpi` 0,2) gav ingen synlig effekt och togs bort. Artguiden saknar foto för arten (visar "Ingen bild").
@@ -128,7 +138,6 @@ Oklart eller kvar:
   - Tjänster (ArcGIS ImageServer, Basic-inloggning eller `USER=`/`PASS=` i WMS): `https://geodata.skogsstyrelsen.se/arcgis/rest/services/Publikt/Markfuktighet_SLU_2_0/ImageServer` (band 1 = sannolikhet för blöt mark 0–100, 2 m; band 2 = klass 1 torr-frisk, 2 frisk-fuktig, 3 fuktig-blöt, 4 vatten) och `.../Publikt/SkogligaGrunddata_3_1/ImageServer` (volym, grundyta m²/ha, medelhöjd dm, medeldiameter, biomassa; 10 m; 0 där medelhöjd < 3 m).
   - Plan: proxy i `server/` (som `wms.ts`) med inloggningen som Cloudflare-hemlighet (`npx wrangler pages secret put SKS_USER` resp. `SKS_PASS`, körs av användaren), dev-proxy i `vite.config.ts` som läser `.env.sks.local`, nya fält i `PixelFeatures` (lägg till sist), läs om egenskaper för bär-, bakgrunds- och markpunkter (~16 000 punkter, ~1 h) och träna om med `ONLY=blabar,lingon`.
 - Träna om bara vissa arter: `ONLY=blabar,lingon node scripts/train/fit.ts`. Lägg till `OLD=1` för att också mäta de nuvarande vikterna.
-- Lager med riktiga fynd (GBIF/svampkarta-prickar på kartan) har föreslagits men inte gjorts.
 - Användaren rapporterade att åkermark markerades. Det kunde inte återskapas för svampar. Spärren ovan är den troliga lösningen för bär. **Be användaren bekräfta** och fråga vilken art och plats det gällde.
 - Puppeteer-test på Windows: använd korta `--user-data-dir`-sökvägar, till exempel `C:/Users/linus/AppData/Local/Temp/xx123`. Långa sökvägar spräcker Windows gräns på 260 tecken, och då ger Cache Storage felet "Entry already exists".
 - Rör inte användarens egen dev-server på port 5173.

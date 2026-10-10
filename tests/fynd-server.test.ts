@@ -85,3 +85,13 @@ test('när GBIF inte svarar: 502 som inte får cachas', async () => {
   assert.equal(res.status, 502)
   assert.equal(res.headers.get('cache-control'), 'no-store')
 })
+
+test('GBIF svarar "för många anrop" en gång: nytt försök, sedan fynden', async () => {
+  let n = 0
+  globalThis.fetch = (async () => (++n === 1 ? new Response('lugn', { status: 429 }) : Response.json({ endOfRecords: true, results: [rec(1)] }))) as typeof fetch
+  const res = await fynd(url(`/fynd/svamp/${FYND_ZOOM}/${x}/${y}`))
+  assert.equal(res.status, 200)
+  assert.equal(((await res.json()) as FyndResponse).finds.length, 1)
+  assert.equal(n, 2)
+})
+

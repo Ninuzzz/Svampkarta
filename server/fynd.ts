@@ -19,6 +19,19 @@ export interface FyndResponse {
   complete: boolean
 }
 
+/** Pauser före omförsök. GBIF svarar 429 när många rutor hämtas samtidigt (en kartvy är flera rutor). */
+export const GBIF_RETRY_MS = [600, 1500]
+
+/** En sida från GBIF. Vid "för många anrop" (429) eller serverfel görs nya försök efter en kort paus. */
+async function gbifPage(url: string) {
+  for (let attempt = 0; ; attempt++) {
+    const res = await fetch(url, { headers: { 'User-Agent': 'Mycel (svamp- och bärkarta)' } }).catch(() => null)
+    const retry = !res || res.status === 429 || res.status >= 500
+    if (!retry || attempt >= GBIF_RETRY_MS.length) return res
+    await new Promise((r) => setTimeout(r, GBIF_RETRY_MS[attempt]))
+  }
+}
+
 export async function fynd(req: Request) {
   const [, , set = '', zs = '', xs = '', ys = ''] = new URL(req.url).pathname.split('/')
   const ids = parseSet(set)
@@ -30,7 +43,7 @@ export async function fynd(req: Request) {
   const finds: Find[] = []
   let complete = false
   for (let page = 0; page < FYND_MAX_PAGES; page++) {
-    const res = await fetch(gbifUrl(ids, box, page * FYND_PAGE, year), { headers: { 'User-Agent': 'Mycel (svamp- och bärkarta)' } }).catch(() => null)
+    const res = await gbifPage(gbifUrl(ids, box, page * FYND_PAGE, year))
     const body = res?.ok ? ((await res.json().catch(() => null)) as { results?: unknown; endOfRecords?: unknown } | null) : null
     if (!body || !Array.isArray(body.results)) return new Response('Källan svarade inte', { status: 502, headers: { 'cache-control': 'no-store' } })
     for (const r of body.results) {

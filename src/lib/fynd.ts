@@ -128,3 +128,17 @@ export function toFind(rec: Record<string, unknown>): Find | null {
   if (id === null || lat === null || lng === null || year === null || !sp) return null
   return { id, lat: round5(lat), lng: round5(lng), year, sp }
 }
+
+/** Fynd från de senaste tio åren ritas tydligt, äldre svagare. */
+export const isRecent = (year: number, now: number) => year >= now - 10
+
+/**
+ * Slår ihop fynd från flera rutor: utan dubbletter (ett fynd på en rutgräns
+ * kommer i båda rutorna), nyast först och högst `max` stycken.
+ */
+export function mergeFinds(lists: Find[][], max: number): { finds: Find[]; total: number } {
+  const byId = new Map<number, Find>()
+  for (const list of lists) for (const f of list) byId.set(f.id, f)
+  const all = [...byId.values()].sort((a, b) => b.year - a.year || b.id - a.id)
+  return { finds: all.slice(0, max), total: all.length }
+}
