@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { BookmarkSimple, CaretDown, Check, Info, NavigationArrow, Prohibit, SpinnerGap, X } from '@phosphor-icons/react'
-import type { FactorBreakdown, InspectResult } from '../analysis/protocol'
+import type { FactorBreakdown, Hotspot, InspectResult } from '../analysis/protocol'
 import { SPECIES_BY_ID, targetSpecies, type SpeciesId, type Target } from '../analysis/species'
 import type { Weather } from '../analysis/weather'
 import { CODE_INFO } from '../analysis/nmdcodes'
@@ -73,10 +73,13 @@ export function AreaSheet({
   feedbackNear,
   onFeedback,
   chanceHa,
+  spot,
 }: {
   sel: AreaSelection
   /** chansfliken: det markerade områdets storlek, null utanför områdena (undefined = skogsfliken) */
   chanceHa?: number | null
+  /** toppen man tryckte på, om området är en topp: då visas toppens siffra, samma som på kartan */
+  spot?: Hotspot | null
   target: Target
   weather: Weather | null
   place: string | null
@@ -89,7 +92,13 @@ export function AreaSheet({
   const r = sel.result
   const [why, setWhy] = useState(true)
   const targetIds = targetSpecies(target).map((s) => s.id)
-  const main = r?.species.filter((s) => targetIds.includes(s.id)).sort((a, b) => b.chance - a.chance)[0]
+  const inTarget = r?.species.filter((s) => targetIds.includes(s.id)).sort((a, b) => b.chance - a.chance)
+  // En topp på kartan visar snittet runt toppen och den art som dominerar där. Bladet visar samma art och
+  // siffra, annars står det en siffra på kartan och en annan här. Punktens eget värde (det som "Varför?"
+  // förklarar) står på en egen rad när det skiljer sig.
+  const top = spot && spot.lat === sel.lat && spot.lng === sel.lng ? spot : null
+  const main = (top && inTarget?.find((s) => s.id === top.species)) || inTarget?.[0]
+  const shown = main ? (top && top.species === main.id ? top.score : main.chance) : 0
   const cls = r ? CLASSES.get(r.code) : null
   const dot = cls ? `rgb(${colorFor(cls).join(' ')})` : '#d8d2b8'
   useEffect(() => setWhy(true), [sel.lat, sel.lng])
@@ -136,30 +145,6 @@ export function AreaSheet({
 
         {r && (
           <div className="grid gap-4">
-            {/* Information */}
-            <div className="card-plain">
-              <h3 className="card-title">Information</h3>
-              <ul className="flex flex-wrap gap-1.5">
-                {[
-                  chanceHa ? `${ha(chanceHa)} chansområde` : chanceHa === undefined ? ha(r.standHa) : null,
-                  r.soilGroup ? r.soilName : null,
-                  r.forestAge ? `≈ ${r.forestAge} år` : null,
-                  r.elevation != null ? `${r.elevation} m ö.h.` : null,
-                  r.tpi != null ? (r.tpi < -1.5 ? 'Svacka' : r.tpi > 1.5 ? 'Krön' : 'Plan mark') : null,
-                  r.slope != null && r.slope > 3 ? `Lutning ${Math.round(r.slope)}°` : null,
-                  r.pathDistance != null && r.pathDistance < 500 ? `Stig ${Math.round(r.pathDistance / 10) * 10} m` : null,
-                  r.roadDistance != null ? `Väg ${r.roadDistance < 1000 ? `${Math.round(r.roadDistance / 10) * 10} m` : `${(r.roadDistance / 1000).toFixed(1)} km`}` : null,
-                ]
-                  .filter(Boolean)
-                  .map((t) => (
-                    <li key={t} className="chip-info">
-                      {t}
-                    </li>
-                  ))}
-              </ul>
-              <p className="mt-3 text-sm leading-relaxed text-forest-900">{describe(r, chanceHa)}</p>
-            </div>
-
             {/* Chans för valt mål */}
             {main && (
               <div className="card-plain">
@@ -167,16 +152,19 @@ export function AreaSheet({
                   <SpeciesIcon id={main.id} size={40} className="size-12 rounded-full bg-white shadow-sm" />
                   <div className="min-w-0 flex-1">
                     <h3 className="text-sm font-semibold text-ink-muted">Chans för {SPECIES_BY_ID[main.id].name.toLowerCase()}</h3>
-                    <p className="text-3xl leading-none font-bold tabular">{pct(main.chance)}</p>
+                    <p className="text-3xl leading-none font-bold tabular">{pct(shown)}</p>
                   </div>
-                  <ChanceBadge v={main.chance} />
+                  <ChanceBadge v={shown} />
                 </div>
                 <a href={href('guide', { art: main.id })} className="mt-2 inline-flex text-[13px] font-bold text-forest-700 underline-offset-2 hover:underline">
                   Så känner du igen {SPECIES_BY_ID[main.id].name.toLowerCase()} – och vad du ska se upp för →
                 </a>
                 <div className="mt-3 h-2 overflow-hidden rounded-full bg-sand-100">
-                  <div className="h-full rounded-full bg-gradient-to-r from-chance-lo via-chance-mid to-chance-hi" style={{ width: pct(main.chance) }} />
+                  <div className="h-full rounded-full bg-gradient-to-r from-chance-lo via-chance-mid to-chance-hi" style={{ width: `${Math.round(shown * 100)}%` }} />
                 </div>
+                {pct(shown) !== pct(main.chance) && (
+                  <p className="mt-2 text-xs text-ink-muted">Siffran är snittet runt toppen, samma som på kartan. Precis i mitten: {pct(main.chance)}.</p>
+                )}
                 <div className="mt-4 rounded-2xl bg-sand-100/70 p-3">
                   <p className="text-[13px] font-bold">Har du letat här?</p>
                   <p className="text-xs text-ink-muted">
@@ -217,6 +205,30 @@ export function AreaSheet({
                 )}
               </div>
             )}
+
+            {/* Information */}
+            <div className="card-plain">
+              <h3 className="card-title">Information</h3>
+              <ul className="flex flex-wrap gap-1.5">
+                {[
+                  chanceHa ? `${ha(chanceHa)} chansområde` : chanceHa === undefined ? ha(r.standHa) : null,
+                  r.soilGroup ? r.soilName : null,
+                  r.forestAge ? `≈ ${r.forestAge} år` : null,
+                  r.elevation != null ? `${r.elevation} m ö.h.` : null,
+                  r.tpi != null ? (r.tpi < -1.5 ? 'Svacka' : r.tpi > 1.5 ? 'Krön' : 'Plan mark') : null,
+                  r.slope != null && r.slope > 3 ? `Lutning ${Math.round(r.slope)}°` : null,
+                  r.pathDistance != null && r.pathDistance < 500 ? `Stig ${Math.round(r.pathDistance / 10) * 10} m` : null,
+                  r.roadDistance != null ? `Väg ${r.roadDistance < 1000 ? `${Math.round(r.roadDistance / 10) * 10} m` : `${(r.roadDistance / 1000).toFixed(1)} km`}` : null,
+                ]
+                  .filter(Boolean)
+                  .map((t) => (
+                    <li key={t} className="chip-info">
+                      {t}
+                    </li>
+                  ))}
+              </ul>
+              <p className="mt-3 text-sm leading-relaxed text-forest-900">{describe(r, chanceHa)}</p>
+            </div>
 
             {/* Arter som trivs här */}
             <div className="card-plain">

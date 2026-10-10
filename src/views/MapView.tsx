@@ -140,6 +140,12 @@ function standImage(stand: NonNullable<NonNullable<AreaSelection['result']>['sta
   return c.toDataURL()
 }
 
+/** Kartans startvy utan länk: hemortens, eller dess mobilvy på smal skärm när bara hemkommunen är vald. */
+function homeView(prefs: MapPrefs) {
+  const homeOnly = !prefs.wholeView && prefs.areas.length === 1 && prefs.areas[0] === HOME.kommun
+  return homeOnly && !window.matchMedia('(min-width: 1024px)').matches ? HOME.narrow : HOME
+}
+
 export default function MapView() {
   const data = useData()
   const { places, routes } = data
@@ -152,7 +158,7 @@ export default function MapView() {
     const lat = Number(params.get('lat')), lng = Number(params.get('lng'))
     return params.has('lat') && Number.isFinite(lat) && Number.isFinite(lng)
       ? { center: [lat, lng] as [number, number], zoom: Number(params.get('z')) || 14 }
-      : { center: [HOME.lat, HOME.lng] as [number, number], zoom: HOME.zoom }
+      : { center: [homeView(prefs).lat, homeView(prefs).lng] as [number, number], zoom: homeView(prefs).zoom }
   })
   const [center, setCenter] = useState<LatLng>({ lat: startView.center[0], lng: startView.center[1] })
   const [zoom, setZoom] = useState(startView.zoom)
@@ -292,7 +298,8 @@ export default function MapView() {
       map.setView([lat, lng], Number(params.get('z')) || 14)
       return
     }
-    map.setView([HOME.lat, HOME.lng], HOME.zoom)
+    const home = homeView(prefs)
+    map.setView([home.lat, home.lng], home.zoom)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [map, params.toString()])
 
@@ -624,6 +631,7 @@ export default function MapView() {
             <AreaSheet
               sel={area}
               chanceHa={chanceTab ? chanceHa : undefined}
+              spot={chanceTab ? (rawSpots.spots.find((h) => h.lat === area.lat && h.lng === area.lng) ?? activeSpot) : null}
               target={prefs.target}
               weather={weather}
               place={areaPlace}
