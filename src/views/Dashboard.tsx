@@ -126,7 +126,7 @@ export default function Dashboard() {
           <button
             type="button"
             onClick={tour.start}
-            className="mt-5 inline-flex min-h-10 items-center gap-1.5 text-sm font-bold text-forest-700 underline-offset-4 hover:underline"
+            className="mt-5 inline-flex min-h-11 items-center gap-1.5 text-sm font-bold text-forest-700 underline-offset-4 hover:underline"
           >
             <Question size={18} weight="bold" /> Så funkar {BRAND.name} – ta guiden
           </button>

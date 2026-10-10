@@ -226,7 +226,6 @@ const STEPS: Step[] = [
 /*  Kontext                                                            */
 /* ------------------------------------------------------------------ */
 
-const DONE_KEY = 'mycel:tour-done'
 const Ctx = createContext<{ start: () => void }>({ start: () => {} })
 export const useTour = () => useContext(Ctx)
 
@@ -246,27 +245,9 @@ export function TourProvider({ children }: { children: ReactNode }) {
   const [step, setStep] = useState<number | null>(null)
   const start = useCallback(() => setStep(0), [])
 
-  // Visa guiden automatiskt första gången
-  useEffect(() => {
-    let seen = true
-    try {
-      seen = !!localStorage.getItem(DONE_KEY)
-    } catch {
-      /* privat läge */
-    }
-    if (seen) return
-    const t = window.setTimeout(() => setStep(0), 900)
-    return () => window.clearTimeout(t)
-  }, [])
-
-  const close = useCallback(() => {
-    setStep(null)
-    try {
-      localStorage.setItem(DONE_KEY, '1')
-    } catch {
-      /* ignorera */
-    }
-  }, [])
+  // Guiden öppnas bara när man själv ber om den (länken på startsidan, frågetecknet i menyn). Förr öppnades
+  // den av sig själv efter en knapp sekund vid första besöket, och lade sig då över knappen man var på väg mot.
+  const close = useCallback(() => setStep(null), [])
 
   return (
     <Ctx.Provider value={{ start }}>
@@ -445,7 +426,7 @@ function TourOverlay({ step, setStep, onClose }: { step: number; setStep: (n: nu
           <span className="text-xs font-bold tracking-wide text-sage-600 uppercase tabular">
             {step + 1} av {STEPS.length}
           </span>
-          <button type="button" className="icon-btn -mt-1 -mr-2 !size-9" aria-label="Stäng guiden" onClick={onClose}>
+          <button type="button" className="icon-btn -mt-1 -mr-2" aria-label="Stäng guiden" onClick={onClose}>
             <X size={18} />
           </button>
         </div>
