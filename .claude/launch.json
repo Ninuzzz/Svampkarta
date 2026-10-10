@@ -18,6 +18,12 @@
       "runtimeExecutable": "npx",
       "runtimeArgs": ["vite", "--config", "scripts/train/vite.train.config.ts", "--port", "5175", "--strictPort"],
       "port": 5175
+    },
+    {
+      "name": "pages-local",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["-y", "wrangler@4.148.0", "pages", "dev", "dist", "--port", "8790"],
+      "port": 8790
     }
   ]
 }
