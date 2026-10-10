@@ -4,7 +4,7 @@
  *  - Appen (html, js, css, ikoner, artguidens bilder) sparas vid installation.
  *  - Kartbilder (flygfoto, karta, terräng), stigdata och kommungränser sparas
  *    när de visas, så att områden du tittat på finns kvar offline.
- *  - Vädret: senaste svaret används om nätet saknas.
+ *  - Vädret och de rapporterade fynden: senaste svaret används om nätet saknas.
  *  - Analysdatan (skog, jordart, höjd, ålder) sparar analys-workern själv.
  *
  * __VERSION__ och __PRECACHE__ fylls i vid bygget (vite.config.ts).
@@ -14,7 +14,11 @@ const PRECACHE = __PRECACHE__
 const APP = `mycel-app-${VERSION}`
 const TILES = 'mycel-tiles-v1'
 const RUNTIME = 'mycel-runtime-v1'
+const FINDS = 'mycel-fynd-v1'
 const MAX_TILES = 6000
+const MAX_FINDS = 300
+// filerna som sparades vid installationen, utom sidan själv (den hämtas färsk när nätet finns)
+const PRECACHED = new Set(PRECACHE.filter((f) => f !== '/'))
 
 const TILE_HOSTS = [
   'clarity.maptiles.arcgis.com',
@@ -44,17 +48,17 @@ self.addEventListener('activate', (e) => {
   )
 })
 
-/** Håll kartbildscachen inom en rimlig storlek (äldst först ut). */
-let trimming = false
-async function trimTiles() {
-  if (trimming) return
-  trimming = true
+/** Håll en cache inom en rimlig storlek (äldst först ut). */
+const trimming = new Set()
+async function trim(name, max) {
+  if (trimming.has(name)) return
+  trimming.add(name)
   try {
-    const c = await caches.open(TILES)
+    const c = await caches.open(name)
     const keys = await c.keys()
-    for (let i = 0; i < keys.length - MAX_TILES; i++) await c.delete(keys[i])
+    for (let i = 0; i < keys.length - max; i++) await c.delete(keys[i])
   } finally {
-    trimming = false
+    trimming.delete(name)
   }
 }
 
@@ -70,14 +74,17 @@ async function cacheFirst(req, name, onStore) {
   return res
 }
 
-async function networkFirst(req, name, timeoutMs) {
+async function networkFirst(req, name, timeoutMs, onStore) {
   const c = await caches.open(name)
   try {
     const res = await Promise.race([
       fetch(req),
       new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), timeoutMs)),
     ])
-    if (res.ok) c.put(req, res.clone())
+    if (res.ok) {
+      c.put(req, res.clone())
+      onStore?.()
+    }
     return res
   } catch (e) {
     const hit = await c.match(req, { ignoreSearch: name === APP, ignoreVary: true })
@@ -87,6 +94,7 @@ async function networkFirst(req, name, timeoutMs) {
 }
 
 let tileCount = 0
+let findCount = 0
 self.addEventListener('fetch', (e) => {
   const req = e.request
   if (req.method !== 'GET' || req.headers.has('range')) return
@@ -99,15 +107,21 @@ self.addEventListener('fetch', (e) => {
       e.respondWith(networkFirst(new Request('/'), APP, 4000))
       return
     }
-    if (url.pathname.startsWith('/assets/') || url.pathname.startsWith('/guide/') || url.pathname.startsWith('/icons/') || url.pathname.startsWith('/img/')) {
+    // det som sparades vid installationen (js, css, bilder, ikon, manifest) tas därifrån
+    if (PRECACHED.has(url.pathname)) {
       e.respondWith(caches.match(req, { ignoreVary: true }).then((hit) => hit ?? fetch(req)))
+      return
+    }
+    // rapporterade fynd: färska när nätet finns, annars de som visades senast
+    if (url.pathname.startsWith('/fynd/')) {
+      e.respondWith(networkFirst(req, FINDS, 15000, () => ++findCount % 20 === 0 && trim(FINDS, MAX_FINDS)))
       return
     }
     if (url.pathname.startsWith('/kommuner/')) {
       e.respondWith(cacheFirst(req, RUNTIME))
       return
     }
-    return // /wms och /slu-age: analys-workern cachar själv
+    return // /wms och /age-range: analys-workern cachar själv
   }
 
   // stigdatans index pekar på aktuell version – hämta färskt när nätet finns
@@ -116,7 +130,7 @@ self.addEventListener('fetch', (e) => {
     return
   }
   if (TILE_HOSTS.includes(url.hostname)) {
-    e.respondWith(cacheFirst(req, TILES, () => ++tileCount % 200 === 0 && trimTiles()))
+    e.respondWith(cacheFirst(req, TILES, () => ++tileCount % 200 === 0 && trim(TILES, MAX_TILES)))
     return
   }
   if (url.hostname === 'api.open-meteo.com') {
