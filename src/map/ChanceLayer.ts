@@ -15,6 +15,8 @@ export const CHANCE_NATIVE_ZOOM = 13
 const MAX_DRAW_ZOOM = 18
 /** Utzoomning med valt område: tillåt översikt om området är litet nog. */
 const AREA_TILE_BUDGET = 260
+/** Paus före ett nytt försök för en ruta som räknades utan skogsålder. */
+const AGE_RETRY_MS = 8000
 /** Färdiga fält som sparas när de scrollas ur bild (≈ 200 kB styck): ~14 MB på mobil, ~32 MB på dator. */
 const KEEP = typeof matchMedia !== 'undefined' && matchMedia('(max-width: 768px), (pointer: coarse)').matches ? 72 : 160
 
@@ -199,7 +201,14 @@ export class ChanceLayer extends L.GridLayer {
         apply(quick)
         first()
         if (quick.complete || v !== this.version) return
-        apply(await analysis.chance(z, x, y, this.opts))
+        const full = await analysis.chance(z, x, y, this.opts)
+        apply(full)
+        // Inte färdig = skogsåldern gick inte att hämta. Ett nytt försök efter en stund, om rutan fortfarande visas.
+        if (!full.complete)
+          window.setTimeout(() => {
+            if (v !== this.version || this.fields.get(parent) !== full) return
+            analysis.chance(z, x, y, this.opts).then(apply, () => undefined)
+          }, AGE_RETRY_MS)
       })
       .finally(() => {
         if (v !== this.version) return

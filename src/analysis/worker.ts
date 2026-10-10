@@ -519,11 +519,17 @@ function features(z: number, x: number, y: number) {
       // Skogsålder och stigar på detaljerad zoom (≥ 13) – på översiktszoom vore datamängden för stor
       const detail = z >= 13 && !TRAINING
       const toLatLng = (gx: number, gy: number): [number, number] => [yToLat(f.box.maxy - (gy + 0.5) * f.box.mpp), xToLng(f.box.minx + (gx + 0.5) * f.box.mpp)]
+      // Går skogsåldern inte att hämta räknas rutan ändå (utan ålder), men den är då inte färdig: se nedan
+      let ageFailed = false
+      const noAge = () => {
+        ageFailed = true
+        return null
+      }
       const [soil, elev, agePine, ageSpruce, paths] = await Promise.all([
         loadSoil(z, x, y).catch(() => new Uint8Array(N * N)),
         loadDem(z, x, y).catch(() => null),
-        detail ? ageGrid('tall', N, toLatLng).catch(() => null) : null,
-        detail ? ageGrid('gran', N, toLatLng).catch(() => null) : null,
+        detail ? ageGrid('tall', N, toLatLng).catch(noAge) : null,
+        detail ? ageGrid('gran', N, toLatLng).catch(noAge) : null,
         detail ? pathGrid(z, x, y, N, M, TS).catch(() => null) : null,
       ])
       if (agePine || ageSpruce) {
@@ -570,7 +576,10 @@ function features(z: number, x: number, y: number) {
       }
 
       ensureNb(f)
-      f.complete = true
+      // Utan skogsålder är rutan inte färdig. Den sparas då inte, så att nästa fråga hämtar åldern på nytt
+      // (kartlagret frågar en gång till efter en stund, se ChanceLayer).
+      f.complete = !ageFailed
+      if (ageFailed) full.delete(key)
       return f
     })()
     p.catch(() => full.delete(key))
