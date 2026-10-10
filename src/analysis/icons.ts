@@ -17,6 +17,10 @@ const bolete = (cap: string, stem: string) =>
 const flatcap = (cap: string, stem: string) =>
   `<path d="M13 16h6v9.6a3 3 0 0 1-6 0Z" fill="${stem}" ${stroke}/><path d="M4 14.4c.6-4 6-6.6 12-6.6s11.4 2.6 12 6.6c.2 1.4-1.6 2.4-4 2.6-2.6.2-5.2-.6-8-.4s-5.4.6-8 .4c-2.4-.2-4.2-1.2-4-2.6Z" fill="${cap}" ${stroke}/>`
 
+// Skivling med välvd hatt, synliga skivor och ring på foten (champinjon) – skiljer sig från flatcap i listan
+const gilled = (cap: string, gill: string, stem: string) =>
+  `<path d="M13.4 17h5.2l.5 8.6a3.1 3.1 0 0 1-6.2 0Z" fill="${stem}" ${stroke}/><path d="M5.4 16.4h21.2c-.8 1.9-5.2 2.9-10.6 2.9S6.2 18.3 5.4 16.4Z" fill="${gill}" ${stroke}/><path d="M4.2 16.6C4.2 10.4 9.4 6 16 6s11.8 4.4 11.8 10.6c0 .5-.4.8-1 .8H5.2c-.6 0-1-.3-1-.8Z" fill="${cap}" ${stroke}/><path d="M12.6 21.2c2.2.9 4.6.9 6.8 0" fill="none" stroke="#3a2a10" stroke-opacity=".45" stroke-width="1.2" stroke-linecap="round"/>`
+
 const berries = (c: string, leaf = '#5b7a1e') =>
   `<path d="M16 9c2-3 5-4.6 8.4-4.4-1 3.4-4 5-8.4 4.4Z" fill="${leaf}"/><circle cx="11" cy="17" r="5.4" fill="${c}" ${stroke}/><circle cx="20.6" cy="15" r="5" fill="${c}" ${stroke}/><circle cx="16.6" cy="23.4" r="5" fill="${c}" ${stroke}/><circle cx="9.4" cy="15.2" r="1.3" fill="#fff" fill-opacity=".55"/><circle cx="19" cy="13.2" r="1.2" fill="#fff" fill-opacity=".55"/><circle cx="15" cy="21.6" r="1.2" fill="#fff" fill-opacity=".55"/>`
 
@@ -44,6 +48,7 @@ const BODY: Record<SpeciesId, string> = {
   taggsvamp: flatcap('#e8cf9c', '#f4e7cb'),
   farticka: flatcap('#ddd5c4', '#f1ece0'),
   smorsopp: bolete('#9a6a2e', '#f2dd8d'),
+  champinjon: gilled('#f3ece0', '#c98f86', '#f7f2e8'),
   blabar: berries('#3d5a9e'),
   lingon: berries('#d0283c'),
   hjortron: aggregate('#f0a03a'),

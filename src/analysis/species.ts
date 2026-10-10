@@ -24,6 +24,7 @@ export type SpeciesId =
   | 'taggsvamp'
   | 'farticka'
   | 'smorsopp'
+  | 'champinjon'
   | 'blabar'
   | 'lingon'
   | 'hjortron'
@@ -51,6 +52,17 @@ export interface SpeciesModel {
   wetEdge: number
   /** behöver ädellövträd (ek/bok) i närheten */
   needsNoble?: boolean
+  /**
+   * Växer på öppen gräsmark även utan skog omkring (betesmark, äng, park).
+   * Övriga arter får bara poäng för öppen mark i skogsbygd, se score() i model.ts.
+   */
+  openLand?: boolean
+  /**
+   * Visas bara när arten väljs själv, inte i "Alla svampar"/"Alla bär".
+   * För arter vars växtplats modellen bara ser grovt, så att de inte tänder
+   * stora ytor i standardvyn.
+   */
+  soloOnly?: boolean
   /** hur mycket arten kräver sammanhängande lämplig skog (0–0.6) */
   continuity: number
   /** säsongstopp som dag på året vid 56°N, bredd i dagar, förskjutning dagar per breddgrad norrut */
@@ -244,6 +256,39 @@ export const EXPERT_MODELS: SpeciesModel[] = [
     color: '#9a6a2e',
   },
   {
+    // Expertvikter, inte tränade: inga fynd är hämtade för arten än (se scripts/train).
+    id: 'champinjon',
+    name: 'Ängschampinjon',
+    kind: 'svamp',
+    habitat: 'Betesmarker, ängar och gräsmattor på näringsrik mark',
+    // Nästan bara öppen gräsmark; lite i gläntor och bryn i lövskog.
+    // Bästa marktyp ska ha vikt 1, som för alla arter: kartan visar bara det som når
+    // 36 % av bästa möjliga chans (SHOW i worker.ts), och det taket räknas utan
+    // marktypsvikterna. En lägre vikt här döljer nästan alla områden.
+    tree: { oppen: 1, adel: 0.12, triv: 0.1, hygge: 0.08 },
+    openLand: true,
+    // NMD:s klass "Öppen mark" rymmer även strandäng, hed och hällmark – i säsong skulle
+    // all sådan mark markeras i "Alla svampar". Arten visas därför bara när den väljs.
+    soloOnly: true,
+    wet: { dry: 1, wet: 0.15 },
+    soil: { sand: 0.6, moran: 0.85, lera: 1, torv: 0.15, berg: 0.2 },
+    tpi: 0,
+    south: 0.08,
+    openEdge: 0,
+    wetEdge: 0,
+    // 0: annars straffas mark utan skog omkring
+    continuity: 0,
+    peak: 238,
+    spread: 30,
+    latShift: -1.5,
+    tempOpt: 15,
+    rainSens: 0.9,
+    range: (lat) => clamp((63.5 - lat) / 4, 0.1, 1),
+    value: 0.6,
+    pathEdge: 0,
+    color: '#c9b79a',
+  },
+  {
     id: 'blabar',
     name: 'Blåbär',
     kind: 'bar',
@@ -395,7 +440,7 @@ export const SPECIES_BY_ID = Object.fromEntries(SPECIES_MODELS.map((s) => [s.id,
 export type Target = SpeciesId | 'svamp' | 'bar'
 
 export function targetSpecies(t: Target): SpeciesModel[] {
-  if (t === 'svamp' || t === 'bar') return SPECIES_MODELS.filter((s) => s.kind === t)
+  if (t === 'svamp' || t === 'bar') return SPECIES_MODELS.filter((s) => s.kind === t && !s.soloOnly)
   return [SPECIES_BY_ID[t]]
 }
 
@@ -443,6 +488,7 @@ export function matchSpecies(text: string): SpeciesId | null {
     ['taggsvamp', ['taggsvamp']],
     ['farticka', ['farticka']],
     ['smorsopp', ['smorsopp']],
+    ['champinjon', ['champinjon']],
     ['kantarell', ['kantarell']],
     ['blabar', ['blabar']],
     ['lingon', ['lingon']],

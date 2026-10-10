@@ -87,8 +87,9 @@ const OPEN = TREE_KEYS.indexOf('oppen')
 export function score(sp: SpeciesModel, L: SpeciesLut, fv: PixelFeatures, out: Parts): number {
   let tw = L.tree[fv.tree]
   if (!tw) return 0
-  // Öppen naturmark räknas bara i skogsbygd (hällmark, glänta, hed) – inte betes- och gräsmark bland åkrarna
-  if (fv.tree === OPEN) tw *= fv.forest * fv.forest
+  // Öppen naturmark räknas bara i skogsbygd (hällmark, glänta, hed) – inte betes- och gräsmark bland åkrarna.
+  // Undantag: arter som växer just på gräsmark (openLand), t.ex. ängschampinjon.
+  if (fv.tree === OPEN && !sp.openLand) tw *= fv.forest * fv.forest
   const ww = fv.wet === 2 ? 1 : fv.wet === 1 ? sp.wet.wet : sp.wet.dry
   if (!ww) return 0
   const sw = L.soil[fv.soil]

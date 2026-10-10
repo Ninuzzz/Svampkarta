@@ -5,7 +5,7 @@ Läs den här filen först i en ny session. Den beskriver läget, hur allt häng
 ## Vad det är
 
 **Mycel** är en svensk svamp- och bärkarta: React 19, Vite 8, TypeScript, Tailwind v4, Leaflet.
-Den räknar fram var chansen är störst att hitta 7 svampar och 6 bär, utifrån skog, jordart, terräng, skogsålder, stigar och väder.
+Den räknar fram var chansen är störst att hitta 8 svampar (ängschampinjon visas bara när den väljs) och 6 bär, utifrån skog, jordart, terräng, skogsålder, stigar och väder.
 Användarna kan spara egna platser, dagbok och rutter.
 
 - **Live:** https://mycel-svampkarta.pages.dev (Cloudflare Pages, manuell deploy, se nedan). Flyttad från Netlify 2026-10-08 när Netlifys gratiskrediter tog slut; den gamla adressen mycel-svampkarta.netlify.app visar en äldre version så länge Netlify håller den uppe.
@@ -120,6 +120,8 @@ Oklart eller kvar:
 - Synken är testad av användaren med ett riktigt Google-konto på två enheter (2026-10-08).
 
 ## Kända begränsningar och idéer
+
+- **Ängschampinjon (tillagd 2026-10-10)** är den enda arten som växer på öppen mark. Den har `openLand: true` (undantag från spärren "öppen mark bara i skogsbygd" i `score()`, `model.ts`) och `soloOnly: true` (ingår inte i "Alla svampar", i svampväder-indexet eller i gruppens "hittade inget"; se `targetSpecies` i `species.ts`). Vikterna är expertvärden, inte tränade – inga fynd är hämtade för arten. Begränsning: NMD-klassen "Öppen mark" (kod 41, tio teckenfärger hopslagna i `nmdcodes.ts`) rymmer betesmark, strandäng, hed och hällmark, så lagret visar öppen gräsmark i allmänhet; runt Landskrona dominerar strandängarna längs kusten. Bästa marktyp måste ha vikt 1: ett försök att sänka `tree.oppen` till 0,45 dolde nästan alla områden, eftersom visningsgränsen (`SHOW` i `worker.ts`) räknas mot ett tak utan marktypsvikterna. En terrängjustering (`tpi` 0,2) gav ingen synlig effekt och togs bort. Artguiden saknar foto för arten (visar "Ingen bild").
 
 - Blåbär och lingon är fortfarande svagast. Orsaken är datan: Artportalens bärfynd ligger mest i södra Sverige, nära bebyggelse och på berg eller sand, medan markpunkterna är slumpade över hela landet (där morän dominerar). Sedan 2026-10-08 viktar `fit.ts` därför markpunkterna för bär efter fyndens regioner (breddgrad × väst/öst). Morän gick då från 0,26 till 0,48 (blåbär) och från 0,23 till 0,43 (lingon). Träffsäkerheten blev ungefär oförändrad: blåbär 32 % och lingon 33 % i bästa femtedelen, mot 22 % och 16 % för "all skog". Samma dag lades 3 000 markpunkter nära bärfynden till (`add-local-random.mjs`, nycklar `rnd-lokal:i`; 2 305 hamnade på mark), så att bären jämförs mot 2 970 punkter i stället för 665. Mätningen blev stabilare men inte bättre: blåbär 31 % och lingon 34 %. Gränsen ligger alltså i vad modellen ser, inte i antalet punkter. Nästa steg vore en ny egenskap som skiljer bra bärskog från dålig, till exempel krontäthet eller trädhöjd (SLU Skogliga grunddata eller Skogsstyrelsens laserdata).
 - **Pågår: bättre bärmodell med Skogsstyrelsens data (2026-10-09).** Användaren har beställt ett eget (gratis) användarkonto för Skogsstyrelsens rasterdata; svar kommer per mejl "inom några dagar". Uppgifterna läggs av användaren i `.env.sks.local` (ignoreras av git) som `SKS_USER=` och `SKS_PASS=`. Läs dem aldrig ut i chatten. FTP-inloggningen från produktbeskrivningen fungerar *inte* mot REST (ger 401).

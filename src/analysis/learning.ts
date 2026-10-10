@@ -49,8 +49,8 @@ export function useLearning(data: AppData) {
     return (data.feedback ?? [])
       .filter((f) => !f.found)
       .flatMap((f) => {
-        // "svamp"/"bar" = hela gruppen
-        const ids = f.species === 'svamp' || f.species === 'bar' ? SPECIES_MODELS.filter((s) => s.kind === f.species).map((s) => s.id) : [f.species as SpeciesId]
+        // "svamp"/"bar" = hela gruppen, samma arter som targetSpecies ger (utan soloOnly)
+        const ids = f.species === 'svamp' || f.species === 'bar' ? SPECIES_MODELS.filter((s) => s.kind === f.species && !s.soloOnly).map((s) => s.id) : [f.species as SpeciesId]
         const w = Math.round(Math.exp(-(now - Date.parse(f.date)) / (30 * 86400000)) * 20) / 20
         return ids.map((sp) => ({ mx: Math.round(lngToX(f.lng)), my: Math.round(latToY(f.lat)), sp, w }))
       })

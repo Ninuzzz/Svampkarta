@@ -280,6 +280,52 @@ export const GUIDE: GuideEntry[] = [
     tips: ['Dra av den slemmiga hatthuden', 'Skrapa bort röret på stora exemplar', 'Ät inte stora mängder – vissa får magbesvär'],
   },
   {
+    id: 'champinjon',
+    latin: 'Agaricus campestris',
+    difficulty: 'medel',
+    intro: 'Vit, köttig svamp i gräset på betesmarker och ängar. God matsvamp – men vita flugsvampar är dödliga, så kontrollera alltid skivorna och fotbasen.',
+    facts: [
+      ['Storlek', 'Hatt 4–10 cm'],
+      ['Färg', 'Vit till gräddvit hatt, rosa skivor som blir chokladbruna'],
+      ['Säsong', 'Juli–oktober, ofta efter regn'],
+      ['Växer', 'I gräs på betesmarker, ängar och gräsmattor – inte i skog'],
+    ],
+    signs: [
+      'Skivorna är rosa hos unga svampar och blir chokladbruna – aldrig vita',
+      'Foten har en tunn ring men ingen strumpa (säck) vid basen',
+      'Köttet är vitt och rodnar svagt i snitt; det gulnar inte',
+      'Luktar milt och gott av svamp',
+      'Växer i gräs, ofta i grupper eller ringar',
+    ],
+    lookAlikes: [
+      {
+        image: 'vitflugsvamp',
+        name: 'Vit flugsvamp',
+        latin: 'Amanita virosa',
+        danger: 'dodlig',
+        diff: ['Skivorna är alltid vita', 'Strumpa (säck) vid fotbasen – gräv upp hela foten', 'Växer i skog, inte ute i gräsmark'],
+      },
+      {
+        image: 'blekfungsvamp',
+        name: 'Lömsk flugsvamp',
+        latin: 'Amanita phalloides',
+        danger: 'dodlig',
+        diff: ['Vita skivor och strumpa vid fotbasen', 'Hatten är oftast olivgrön men kan vara nästan vit', 'Växer vid ek och bok i södra Sverige'],
+      },
+      {
+        name: 'Giftchampinjon (karbolchampinjon)',
+        latin: 'Agaricus xanthodermus',
+        danger: 'giftig',
+        diff: ['Gulnar kraftigt i fotbasen när man skär eller gnider', 'Luktar bläck eller karbol, starkast vid tillagning'],
+      },
+    ],
+    tips: [
+      'Plocka aldrig vita svampar med vita skivor',
+      'Ta upp hela svampen och titta på fotbasen innan du rensar',
+      'Lämna helt unga, slutna knappar – skivornas färg syns inte än',
+    ],
+  },
+  {
     id: 'blabar',
     latin: 'Vaccinium myrtillus',
     difficulty: 'latt',

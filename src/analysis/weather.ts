@@ -85,7 +85,8 @@ function summarize(lat: number, lng: number, json: OpenMeteo): Weather {
   const base = { rainEff, soilMoisture, t10, frost }
   const factors: Partial<Record<SpeciesId, number>> = {}
   for (const sp of SPECIES_MODELS) factors[sp.id] = speciesWeather(sp, base)
-  const mush = SPECIES_MODELS.filter((s) => s.kind === 'svamp').map((s) => factors[s.id]!)
+  // indexet beskriver standardurvalet "Alla svampar" – arter som bara visas när de väljs räknas inte in
+  const mush = SPECIES_MODELS.filter((s) => s.kind === 'svamp' && !s.soloOnly).map((s) => factors[s.id]!)
   const index = Math.max(...mush)
 
   const verdict =

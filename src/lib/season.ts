@@ -17,6 +17,7 @@ export const SPECIES: Species[] = [
   { name: 'Blek taggsvamp', kind: 'svamp', months: [8, 9, 10], habitat: 'Mossig barrskog' },
   { name: 'Fårticka', kind: 'svamp', months: [8, 9, 10], habitat: 'Mager granskog' },
   { name: 'Smörsopp', kind: 'svamp', months: [8, 9, 10], habitat: 'Ung tallskog' },
+  { name: 'Ängschampinjon', kind: 'svamp', months: [7, 8, 9, 10], habitat: 'Betesmarker, ängar och gräsmattor' },
   { name: 'Smultron', kind: 'bar', months: [6, 7], habitat: 'Soliga gläntor och vägkanter' },
   { name: 'Blåbär', kind: 'bar', months: [7, 8], habitat: 'Skuggig granskog' },
   { name: 'Hjortron', kind: 'bar', months: [7, 8], habitat: 'Öppna myrar' },
