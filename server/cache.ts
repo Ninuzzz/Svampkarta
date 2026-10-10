@@ -1,7 +1,7 @@
 /**
- * Cloudflares cache framför en funktion: lyckade svar sparas ett år per
- * datacenter, så källservrarna bara får första anropet. Webbläsaren får
- * funktionens egna cache-huvuden (en vecka).
+ * Cloudflares cache framför en funktion: lyckade svar sparas per datacenter
+ * (ett år om inget annat anges), så källservrarna bara får första anropet.
+ * Webbläsaren får funktionens egna cache-huvuden.
  */
 
 /** Det Cloudflare Pages skickar till en funktion (bara det vi använder). */
@@ -17,7 +17,7 @@ const YEAR = 31536000
  * ordning). Annars kunde vem som helst lägga till en påhittad parameter, få
  * en ny nyckel varje gång och låta varje anrop gå vidare till källservrarna.
  */
-export async function cached(ctx: PagesContext, handler: (req: Request) => Promise<Response>, params: readonly string[] = []) {
+export async function cached(ctx: PagesContext, handler: (req: Request) => Promise<Response>, params: readonly string[] = [], ttl = YEAR) {
   const cache = (caches as unknown as { default: Cache }).default
   const url = new URL(ctx.request.url)
   const q = new URLSearchParams()
@@ -30,7 +30,7 @@ export async function cached(ctx: PagesContext, handler: (req: Request) => Promi
   if (!res.ok) return res
   const body = await res.arrayBuffer()
   const stored = new Response(body, res)
-  stored.headers.set('cache-control', `public, max-age=${YEAR}`)
+  stored.headers.set('cache-control', `public, max-age=${ttl}`)
   ctx.waitUntil(cache.put(key, stored))
   return new Response(body, res)
 }
