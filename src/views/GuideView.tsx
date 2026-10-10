@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { ArrowLeft, CheckCircle, MapTrifold, Phone, Skull, WarningOctagon } from '@phosphor-icons/react'
 import { href, navigate, useRoute } from '../lib/router'
-import { HOME } from '../lib/home'
+import { DEFAULT_LAT, getHome } from '../lib/home'
 import { DANGER_LABEL, DEADLY, DIFFICULTY_LABEL, GUIDE, SAFETY_RULES, guideFor, type Danger, type GuideEntry, type LookAlike } from '../lib/guide'
 import { IMAGES } from '../lib/guideImages'
 import { SPECIES_BY_ID, type SpeciesId } from '../analysis/species'
@@ -119,7 +119,7 @@ function Overview() {
         <ul className="mt-5 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
           {list.map((g) => {
             const sp = SPECIES_BY_ID[g.id]
-            const st = seasonState(g.id, HOME.lat)
+            const st = seasonState(g.id, getHome()?.lat ?? DEFAULT_LAT)
             const w = worst(g)
             return (
               <li key={g.id}>
@@ -160,7 +160,7 @@ function Overview() {
 
 function Detail({ entry }: { entry: GuideEntry }) {
   const sp = SPECIES_BY_ID[entry.id]
-  const st = seasonState(entry.id, HOME.lat)
+  const st = seasonState(entry.id, getHome()?.lat ?? DEFAULT_LAT)
   const danger = hasDanger(entry)
 
   const showOnMap = () => {

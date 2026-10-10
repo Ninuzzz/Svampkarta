@@ -2,7 +2,6 @@ import { createContext, useCallback, useContext, useEffect, useLayoutEffect, use
 import { ArrowLeft, ArrowRight, BookOpenText, Cherries, Crosshair, MapPin, NavigationArrow, Path, ShieldCheck, SlidersHorizontal, Sparkle, X } from '@phosphor-icons/react'
 import { navigate, useRoute, type View } from '../lib/router'
 import { BRAND } from '../lib/brand'
-import { HOME } from '../lib/home'
 import { SpeciesIcon } from './SpeciesIcon'
 import { Mushroom } from './ui'
 
@@ -48,7 +47,7 @@ const STEPS: Step[] = [
     view: 'hem',
     targets: ['[data-tour="season"]'],
     title: 'Vad finns just nu?',
-    text: `Startsidan visar dagens svampväder och vilka arter som är bäst just nu runt ${HOME.name}. Tryck på en art för att leta efter den på kartan.`,
+    text: `Startsidan visar dagens svampväder och vilka arter som är bäst just nu i ditt område. Tryck på en art för att leta efter den på kartan.`,
   },
   {
     view: 'karta',

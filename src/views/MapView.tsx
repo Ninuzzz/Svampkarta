@@ -3,7 +3,9 @@ import L from 'leaflet'
 import { ImageOverlay, MapContainer, Marker, Pane, Polyline, TileLayer, useMap, useMapEvents } from 'react-leaflet'
 import { ArrowCounterClockwise, BookOpenText, CaretUp, Crosshair, Drop, Leaf, MagnifyingGlass, Minus, Mountains, NavigationArrow, PencilSimple, Plus, Question, SlidersHorizontal, SpinnerGap, Stack, TreeEvergreen, WifiSlash, X } from '@phosphor-icons/react'
 import { actions, useData } from '../lib/store'
-import { HOME } from '../lib/home'
+import { VIEW_KEY, getHome, saveHome, useHome, type Home } from '../lib/home'
+import { SWEDEN_VIEW, homeView, lastView, searchBox, type View } from '../lib/homeview'
+import { HomePicker } from '../components/HomePicker'
 import { useRoute } from '../lib/router'
 import { getCurrentPosition, haversine } from '../lib/geo'
 import { BASEMAPS, ChanceOverlay, ForestOverlay, HILLSHADE_URL, feedbackIcon, hotspotIcon, hotspotTier, meIcon, pickIcon, placeIcon, type Basemap } from '../map/layers'
@@ -72,7 +74,7 @@ const DEFAULT_PREFS: MapPrefs = {
   forestUnder: false,
   minChance: 0,
   minAreaHa: 2,
-  areas: [HOME.kommun],
+  areas: [],
   wholeView: false,
   labelWords: false,
   showFinds: true,
@@ -81,10 +83,13 @@ const DEFAULT_PREFS: MapPrefs = {
 function loadPrefs(): MapPrefs {
   try {
     const p = JSON.parse(localStorage.getItem(PREFS_KEY) ?? 'null')
-    return p ? { ...DEFAULT_PREFS, ...p, filter: { ...DEFAULT_FILTER, ...p.filter } } : DEFAULT_PREFS
+    if (p) return { ...DEFAULT_PREFS, ...p, filter: { ...DEFAULT_FILTER, ...p.filter } }
   } catch {
-    return DEFAULT_PREFS
+    /* trasig eller oläsbar: börja om */
   }
+  // första besöket på kartan: analysera hemområdet, om ett är valt
+  const home = getHome()
+  return { ...DEFAULT_PREFS, areas: home ? [home.id] : [] }
 }
 
 const FOREST_MIN_ZOOM = 9
@@ -140,10 +145,20 @@ function standImage(stand: NonNullable<NonNullable<AreaSelection['result']>['sta
   return c.toDataURL()
 }
 
-/** Kartans startvy utan länk: hemortens, eller dess mobilvy på smal skärm när bara hemkommunen är vald. */
-function homeView(prefs: MapPrefs) {
-  const homeOnly = !prefs.wholeView && prefs.areas.length === 1 && prefs.areas[0] === HOME.kommun
-  return homeOnly && !window.matchMedia('(min-width: 1024px)').matches ? HOME.narrow : HOME
+/** Hemområdets vy i det här fönstret: hela kommunen om det går, men inte längre ut än chansen visas. */
+function viewOf(home: Home, prefs: MapPrefs): View {
+  const alone = !prefs.wholeView && prefs.areas.length <= 1
+  const min = alone ? chanceMinZoom([[home.bbox[1], home.bbox[0]], [home.bbox[3], home.bbox[2]]]) : 12
+  return homeView(home, window.innerWidth, window.innerHeight, min)
+}
+
+/** Den sparade senaste vyn (se lastView: gäller några timmar). */
+function savedView() {
+  try {
+    return lastView(localStorage.getItem(VIEW_KEY), Date.now())
+  } catch {
+    return null
+  }
 }
 
 export default function MapView() {
@@ -153,13 +168,19 @@ export default function MapView() {
   const toast = useToast()
   const [prefs, setPrefs] = useState<MapPrefs>(loadPrefs)
   const [map, setMap] = useState<L.Map | null>(null)
-  // en länk med lat/lng öppnar kartan direkt där, i stället för hemma först (sparar kartbilder)
+  const home = useHome()
+  // Startvyn: en länk med lat/lng öppnar kartan direkt där. Annars där man senast tittade (om det var nyss),
+  // annars hemområdet, och innan något område är valt hela Sverige.
   const [startView] = useState(() => {
     const lat = Number(params.get('lat')), lng = Number(params.get('lng'))
-    return params.has('lat') && Number.isFinite(lat) && Number.isFinite(lng)
-      ? { center: [lat, lng] as [number, number], zoom: Number(params.get('z')) || 14 }
-      : { center: [homeView(prefs).lat, homeView(prefs).lng] as [number, number], zoom: homeView(prefs).zoom }
+    if (params.has('lat') && Number.isFinite(lat) && Number.isFinite(lng)) return { center: [lat, lng] as [number, number], zoom: Number(params.get('z')) || 14, atHome: true }
+    const h = getHome()
+    const v = savedView() ?? (h ? viewOf(h, prefs) : null)
+    return { center: [(v ?? SWEDEN_VIEW).lat, (v ?? SWEDEN_VIEW).lng] as [number, number], zoom: (v ?? SWEDEN_VIEW).zoom, atHome: !!v }
   })
+  /** kartan öppnades över hela Sverige (inget hemområde känt än): gå till hemområdet när det blir känt */
+  const awaitingHome = useRef(!startView.atHome)
+  const [askHome, setAskHome] = useState(true)
   const [center, setCenter] = useState<LatLng>({ lat: startView.center[0], lng: startView.center[1] })
   const [zoom, setZoom] = useState(startView.zoom)
   const [bounds, setBounds] = useState<L.LatLngBounds | null>(null)
@@ -227,6 +248,30 @@ export default function MapView() {
   }
   const learning = useLearning(data)
   const online = useOnline()
+
+  // Hemområdet blev känt efter att kartan öppnats (valt här, eller hämtat ur tidigare val): visa det
+  useEffect(() => {
+    if (!map || !home || !awaitingHome.current) return
+    awaitingHome.current = false
+    if (new URLSearchParams(location.hash.split('?')[1] ?? '').toString()) return // en länk styr vyn
+    const v = viewOf(home, prefs)
+    map.setView([v.lat, v.lng], v.zoom)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [map, home])
+  // Inget hemområde valt, men en kommun har lagts till på kartan: den blir hemområdet
+  useEffect(() => {
+    if (home !== null || !kommunIndex || !prefs.areas[0]) return
+    const k = kommunIndex.find((x) => x.id === prefs.areas[0])
+    if (k) {
+      awaitingHome.current = false // kartan står redan där kommunen lades till
+      saveHome(k)
+    }
+  }, [home, kommunIndex, prefs.areas])
+  const pickHome = (k: Kommun) => {
+    awaitingHome.current = true
+    setPrefs((p) => ({ ...p, wholeView: false, areas: [k.id, ...p.areas.filter((id) => id !== k.id)] }))
+    saveHome(k)
+  }
 
   // källorna räcker i hörnet – utan "Leaflet"-prefixet
   useEffect(() => {
@@ -298,8 +343,7 @@ export default function MapView() {
       map.setView([lat, lng], Number(params.get('z')) || 14)
       return
     }
-    const home = homeView(prefs)
-    map.setView([home.lat, home.lng], home.zoom)
+    // utan länk står kartan kvar där den är (startvyn är redan vald, se startView)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [map, params.toString()])
 
@@ -344,7 +388,9 @@ export default function MapView() {
   // Kartans mitt i en kommun som inte analyseras: erbjud att lägga till den direkt
   const offerKommun =
     chanceTab && !prefs.wholeView && viewKommun && !prefs.areas.includes(viewKommun.id) && !skipKommun.includes(viewKommun.id) && zoom >= 8 ? viewKommun : null
-  const zoomHint = !offerKommun && (chanceTab ? zoom < chanceMin : showForest && zoom < FOREST_MIN_ZOOM)
+  /** inget område valt och inget tillagt: fråga var man letar (går att stänga) */
+  const homePrompt = home === null && askHome && !prefs.areas.length && !prefs.wholeView
+  const zoomHint = !homePrompt && !offerKommun && (chanceTab ? zoom < chanceMin : showForest && zoom < FOREST_MIN_ZOOM)
   const standUrl = useMemo(() => (area?.result?.stand ? standImage(area.result.stand) : null), [area?.result])
   const sheetOpen = !!(area || selected)
   const { done, total } = rawSpots.progress
@@ -471,6 +517,12 @@ export default function MapView() {
             // en karta som ännu inte fått sin storlek ger en punkt som gräns – ignorera den
             const bb = m.getBounds()
             if (bb.getNorth() > bb.getSouth()) setBounds(bb)
+            // kom ihåg vyn, så att kartan öppnas här om man kommer tillbaka snart (sparas bara på enheten)
+            try {
+              localStorage.setItem(VIEW_KEY, JSON.stringify({ lat: +c.lat.toFixed(5), lng: +c.lng.toFixed(5), zoom: m.getZoom(), t: Date.now() }))
+            } catch {
+              /* privat läge */
+            }
           }}
         />
       </MapContainer>
@@ -557,6 +609,12 @@ export default function MapView() {
               </>
             )}
           </div>
+        </div>
+      )}
+
+      {homePrompt && (
+        <div className="pointer-events-none fixed inset-x-0 top-[calc(5.25rem+env(safe-area-inset-top))] z-[950] flex justify-center px-3 lg:top-24 lg:pl-[420px]">
+          <HomePicker className="rise pointer-events-auto w-full max-w-sm" onPick={pickHome} onClose={() => setAskHome(false)} />
         </div>
       )}
 
@@ -1001,7 +1059,10 @@ function SearchBox({ map, compact = false }: { map: L.Map | null; compact?: bool
     setBusy(true)
     setError('')
     try {
-      const url = `https://nominatim.openstreetmap.org/search?format=jsonv2&limit=5&countrycodes=se&accept-language=sv&viewbox=${HOME.searchBox.join(',')}&q=${encodeURIComponent(q.trim())}`
+      // träffar nära hemområdet först: en grov ruta runt kommunen, inte kartvyn (den kan visa ett hemligt ställe)
+      const home = getHome()
+      const near = home ? `&viewbox=${searchBox(home.bbox).join(',')}` : ''
+      const url = `https://nominatim.openstreetmap.org/search?format=jsonv2&limit=5&countrycodes=se&accept-language=sv${near}&q=${encodeURIComponent(q.trim())}`
       const res = await fetch(url)
       if (!res.ok) throw new Error()
       setResults((await res.json()) as GeoResult[])

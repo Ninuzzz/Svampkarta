@@ -1,11 +1,12 @@
 import { SyncPanel } from '../components/SyncPanel'
 import { useRef, useState, type ReactNode } from 'react'
-import { ArrowRight, BookOpenText, Books, DownloadSimple, MapPin, Path, Plus, Question, Sparkle, UploadSimple } from '@phosphor-icons/react'
+import { ArrowRight, BookOpenText, Books, CaretDown, DownloadSimple, MapPin, Path, Plus, Question, Sparkle, UploadSimple } from '@phosphor-icons/react'
 import { actions, hasDemoData, isAppData, useData } from '../lib/store'
 import { href } from '../lib/router'
 import { formatDate, formatDistance, todayISO } from '../lib/geo'
 import { MONTHS } from '../lib/season'
-import { HOME } from '../lib/home'
+import { DEFAULT_LAT, chooseHome, useHome } from '../lib/home'
+import { HomePicker } from '../components/HomePicker'
 import { BRAND } from '../lib/brand'
 import { KindIcon, YieldDots } from '../components/ui'
 import { RoutePreview } from '../components/RoutePreview'
@@ -40,7 +41,11 @@ export default function Dashboard() {
   const [logOpen, setLogOpen] = useState(false)
   const toast = useToast()
   const fileRef = useRef<HTMLInputElement>(null)
-  const { weather } = useWeather(HOME.lat, HOME.lng)
+  // hemområdet: undefined medan det tas reda på, null om inget är valt (då frågar startsidan)
+  const home = useHome()
+  const [picking, setPicking] = useState(false)
+  const lat = home?.lat ?? DEFAULT_LAT
+  const { weather } = useWeather(home ? home.lat : null, home ? home.lng : null)
   const tour = useTour()
 
   const totalKm = routes.reduce((s, r) => s + r.distance, 0)
@@ -53,8 +58,8 @@ export default function Dashboard() {
   // Arter i säsong just nu på hemorten, rangordnade med vädret
   const doy = dayOfYear()
   const inSeason = SPECIES_MODELS.map((s) => {
-    const season = seasonFactor(s, doy, HOME.lat)
-    const range = s.range ? s.range(HOME.lat) : 1
+    const season = seasonFactor(s, doy, lat)
+    const range = s.range ? s.range(lat) : 1
     return { s, season, range, f: season * (weather?.factors[s.id] ?? 1) * range }
   })
     .filter((x) => x.season > 0.15 && x.range > 0.3)
@@ -97,8 +102,22 @@ export default function Dashboard() {
       {/* ---------- Hero ---------- */}
       <section className="mx-auto grid max-w-6xl items-center gap-8 px-4 pt-8 pb-12 sm:px-6 lg:grid-cols-[1.05fr_1fr] lg:gap-14 lg:pt-36 lg:pb-24">
         <div className="rise">
-          <p className="eyebrow">
-            {greeting()} · {MONTHS[month - 1]} · {HOME.name}
+          <p className="eyebrow flex flex-wrap items-center gap-x-1.5">
+            {greeting()} · {MONTHS[month - 1]}
+            {home && (
+              <>
+                {' · '}
+                <button
+                  type="button"
+                  className="-my-3 inline-flex min-h-11 items-center gap-1 font-[inherit] tracking-[inherit] uppercase underline decoration-forest-700/30 underline-offset-4 hover:decoration-forest-700"
+                  aria-expanded={picking}
+                  aria-label={`Ditt område: ${home.name}. Byt område`}
+                  onClick={() => setPicking(!picking)}
+                >
+                  {home.name} <CaretDown size={12} weight="bold" className={picking ? 'rotate-180' : ''} aria-hidden="true" />
+                </button>
+              </>
+            )}
           </p>
           <h1 className="mt-4 text-[2.6rem] leading-[1.04] font-bold sm:text-6xl lg:text-[4.1rem]">
             Hitta skogens{' '}
@@ -111,6 +130,20 @@ export default function Dashboard() {
             {BRAND.name} läser av skog, jordart, terräng och väder och visar var chansen är störst att hitta svamp och bär. Dina egna ställen stannar hemliga hos
             dig.
           </p>
+          {/* Inget område valt än (eller man vill byta): fråga här, i stället för att utgå från en viss ort */}
+          {(home === null || picking) && (
+            <HomePicker
+              className="mt-7 max-w-md"
+              current={home?.name}
+              onClose={home ? () => setPicking(false) : undefined}
+              onPick={(k) => {
+                chooseHome(k)
+                setPicking(false)
+                toast({ text: `${k.name} är ditt område – startsidan och kartan utgår därifrån` })
+              }}
+            />
+          )}
+
           <div className="mt-8 grid gap-3 sm:flex sm:flex-wrap">
             <a href={href('karta')} className="btn btn-primary !min-h-13 justify-center !px-7 !text-base">
               <Sparkle size={20} weight="fill" className="text-amber" /> Hitta svamp nu
@@ -132,7 +165,7 @@ export default function Dashboard() {
           </button>
 
           {/* Mobil: dagens läge direkt under knapparna, så att det syns utan att scrolla */}
-          <a href={href('karta')} className="glass-strong mt-6 flex items-center gap-3 !rounded-3xl p-3 lg:hidden" aria-label={`Svampväder idag ${idx ?? ''}, bäst just nu: ${inSeason.slice(0, 3).map(({ s }) => s.name).join(', ')} – öppna kartan`}>
+          <a href={href('karta')} hidden={home === null || picking} className="glass-strong mt-6 flex items-center gap-3 !rounded-3xl p-3 lg:hidden [&[hidden]]:hidden" aria-label={`Svampväder idag ${idx ?? ''}, bäst just nu: ${inSeason.slice(0, 3).map(({ s }) => s.name).join(', ')} – öppna kartan`}>
             <WeatherRing idx={idx} size="sm" />
             <span className="min-w-0 flex-1">
               <span className="block text-xs font-semibold text-ink-muted">Svampväder idag</span>
@@ -163,7 +196,7 @@ export default function Dashboard() {
           </div>
 
           {/* dator: svävande glaskort över bilden (mobilen har raden under knapparna) */}
-          <div className="glass-strong absolute top-8 -left-8 hidden items-center gap-3 !rounded-3xl p-3 pr-5 lg:flex">
+          <div className={`glass-strong absolute top-8 -left-8 hidden items-center gap-3 !rounded-3xl p-3 pr-5 ${home === null ? '' : 'lg:flex'}`}>
             <WeatherRing idx={idx} />
             <div>
               <p className="text-xs font-semibold text-ink-muted">Svampväder idag</p>
@@ -172,7 +205,7 @@ export default function Dashboard() {
           </div>
 
           <div className="glass-strong absolute -right-6 -bottom-8 hidden w-[min(260px,78%)] !rounded-3xl p-4 lg:block">
-            <p className="text-xs font-semibold text-ink-muted">Bäst just nu runt {HOME.name}</p>
+            <p className="text-xs font-semibold text-ink-muted">{home ? `Bäst just nu runt ${home.name}` : 'I säsong just nu'}</p>
             <ul className="mt-2 grid gap-1.5">
               {inSeason.slice(0, 3).map(({ s }) => (
                 <li key={s.id} className="flex items-center gap-2.5">

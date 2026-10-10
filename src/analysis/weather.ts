@@ -135,12 +135,14 @@ export function fetchWeather(lat: number, lng: number): Promise<Weather> {
   return p
 }
 
-export function useWeather(lat: number, lng: number) {
+/** Vädret för en punkt. Utan punkt (null, inget område valt än) hämtas inget. */
+export function useWeather(lat: number | null, lng: number | null) {
   const [w, setW] = useState<Weather | null>(null)
   const [error, setError] = useState(false)
-  const la = snap(lat)
-  const ln = snap(lng)
+  const la = lat == null ? null : snap(lat)
+  const ln = lng == null ? null : snap(lng)
   useEffect(() => {
+    if (la == null || ln == null) return setW(null)
     let alive = true
     setError(false)
     fetchWeather(la, ln)
