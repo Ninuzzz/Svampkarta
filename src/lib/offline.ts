@@ -2,6 +2,8 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { analysis } from '../analysis/client'
 import type { ChanceOptions } from '../analysis/protocol'
 import { CHANCE_NATIVE_ZOOM } from '../map/ChanceLayer'
+import { tilesFor } from './fynd'
+import { loadFinds } from '../map/finds'
 
 /*
  * Offline: analysen av ett område räknas igenom i förväg. Då hamnar all
@@ -9,7 +11,10 @@ import { CHANCE_NATIVE_ZOOM } from '../map/ChanceLayer'
  * och kartan kan räkna fram chansen även utan täckning.
  *
  * Bakgrundskartan (flygfoto/karta) laddas inte ner i förväg – kartleverantörernas
- * villkor tillåter inte massnedladdning. De kartbilder du tittat på sparas dock.
+ * villkor tillåter inte massnedladdning. De kartbilder du tittat på sparas dock, och där
+ * de saknas ritas en enkel karta ur samma källdata (se map/SimpleLayer.ts).
+ *
+ * De rapporterade fynden för området hämtas också (service workern sparar svaren).
  */
 
 const KEY = 'mycel:offline'
@@ -84,6 +89,14 @@ export function useOfflineSave(areaKey: string, bounds: [[number, number], [numb
     // några åt gången, så att kartan fortfarande hinner räkna det som syns
     await Promise.all(Array.from({ length: 6 }, worker))
     if (run.current !== id) return
+    // Fynden för området, för både svamp och bär. Saknas de utan nät är kartan ändå användbar,
+    // så ett fel här räknas inte som att sparandet misslyckades. (Bara på den publicerade sajten:
+    // i utvecklingsläge finns ingen service worker som sparar svaren.)
+    if (import.meta.env.PROD) {
+      const box = { south: bounds[0][0], west: bounds[0][1], north: bounds[1][0], east: bounds[1][1] }
+      for (const t of tilesFor(box, 40)) for (const set of ['svamp', 'bar']) await loadFinds(set, t.x, t.y).catch(() => null)
+      if (run.current !== id) return
+    }
     const savedAt = new Date().toISOString().slice(0, 10)
     if (!failed) {
       try {

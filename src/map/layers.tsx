@@ -10,11 +10,12 @@ import { speciesSvg } from '../analysis/icons'
 import { hotspotTier, type HotspotTier } from './tier'
 import type { SpeciesId } from '../analysis/species'
 
-export type Basemap = 'ljus' | 'terrang' | 'flygfoto'
+/** 'enkel' ritas i webbläsaren ur sparad data (se SimpleLayer) och har därför inga kartbilder att hämta. */
+export type Basemap = 'ljus' | 'terrang' | 'flygfoto' | 'enkel'
 
 /** Alla bakgrundskartor är gratis och kräver ingen API-nyckel. */
 export const BASEMAPS: Record<
-  Basemap,
+  Exclude<Basemap, 'enkel'>,
   {
     url: string
     attribution: string
@@ -166,6 +167,34 @@ export function ForestOverlay({ filter, onReady }: { filter: ForestFilter; onRea
     layer.current?.setFilter(filter)
   }, [filter])
 
+  return null
+}
+
+/**
+ * Enkel karta under bakgrundskartan: syns där kartbilderna saknas (utan nät), eller ensam när
+ * den är vald som bakgrund. Koden laddas först när den behövs.
+ */
+export function SimpleOverlay() {
+  const map = useMap()
+  useEffect(() => {
+    // under kartbilderna (200): en kartbild som inte gick att hämta är osynlig, och då syns den här
+    if (!map.getPane('simple')) map.createPane('simple').style.zIndex = '150'
+    let layer: L.GridLayer | null = null
+    let alive = true
+    import('./SimpleLayer').then(({ SimpleLayer }) => {
+      if (!alive) return
+      layer = new SimpleLayer({
+        pane: 'simple',
+        attribution:
+          'Marktäcke: <a href="https://www.naturvardsverket.se/verktyg-och-tjanster/kartor-och-karttjanster/nationella-marktackedata/">NMD, Naturvårdsverket</a> · Vägar och namn &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>/OpenFreeMap',
+      })
+      layer.addTo(map)
+    })
+    return () => {
+      alive = false
+      layer?.remove()
+    }
+  }, [map])
   return null
 }
 

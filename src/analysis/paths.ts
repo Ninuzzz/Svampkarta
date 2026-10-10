@@ -10,7 +10,8 @@ const VZ = 14 // vektorrutornas högsta zoom med full data
 const CLASSES: Record<string, number> = { path: 1, track: 2 } // 1 = stig, 2 = skogsbilväg/traktorväg
 
 let urlP: Promise<string> | null = null
-const tileUrl = () =>
+/** Adressmallen för vektorrutorna (pekar på aktuell version av datan). */
+export const tileUrl = () =>
   (urlP ??= fetch('https://tiles.openfreemap.org/planet')
     .then((r) => r.json())
     .then((j: { tiles: string[] }) => j.tiles[0])

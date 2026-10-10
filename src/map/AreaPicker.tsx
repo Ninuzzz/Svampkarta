@@ -218,7 +218,7 @@ function OfflineRow({ state, onSave, onCancel }: { state: OfflineState; onSave: 
       </button>
       <p className="mt-1.5 text-[12px] leading-snug text-ink-muted">
         {state.failed ? `${state.failed} delar gick inte att hämta – försök igen med bättre täckning. ` : ''}
-        Då fungerar chanskartan utan täckning. Titta gärna igenom området på kartan först, så sparas även bakgrundsbilderna.
+        Då fungerar chanskartan utan täckning, med en enkel karta (vägar, stigar, sjöar, skog och ortnamn) i bakgrunden. Flygfoto sparas bara där du redan har tittat.
       </p>
     </div>
   )

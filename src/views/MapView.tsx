@@ -8,7 +8,7 @@ import { SWEDEN_VIEW, homeView, lastView, searchBox, type View } from '../lib/ho
 import { HomePicker } from '../components/HomePicker'
 import { useRoute } from '../lib/router'
 import { getCurrentPosition, haversine } from '../lib/geo'
-import { BASEMAPS, ChanceOverlay, ForestOverlay, HILLSHADE_URL, feedbackIcon, hotspotIcon, hotspotTier, meIcon, pickIcon, placeIcon, type Basemap } from '../map/layers'
+import { BASEMAPS, ChanceOverlay, ForestOverlay, HILLSHADE_URL, SimpleOverlay, feedbackIcon, hotspotIcon, hotspotTier, meIcon, pickIcon, placeIcon, type Basemap } from '../map/layers'
 import { CLASSES, DEFAULT_FILTER, LEGEND_ITEMS, colorFor, type ForestFilter } from '../map/nmd'
 import { FindsLayer, type FindsInfo } from '../map/FindsLayer'
 import { DualRange, KindBadge, Mushroom, RangeSlider, Segmented, Toggle, YieldDots } from '../components/ui'
@@ -248,6 +248,10 @@ export default function MapView() {
   }
   const learning = useLearning(data)
   const online = useOnline()
+  // En kartbild gick inte att hämta. I skogen har telefonen ofta "nät" utan att något laddar, så
+  // det räcker inte att fråga webbläsaren om den är uppkopplad: då läggs den enkla kartan under.
+  const [baseFailed, setBaseFailed] = useState(false)
+  useEffect(() => setBaseFailed(false), [prefs.basemap, online])
 
   // Hemområdet blev känt efter att kartan öppnats (valt här, eller hämtat ur tidigare val): visa det
   useEffect(() => {
@@ -382,7 +386,7 @@ export default function MapView() {
 
   const spots = useMemo(() => mergeSpots(rawSpots.spots, bounds, zoom), [rawSpots, bounds, zoom])
   const visibleRoutes = prefs.showRoutes ? routes : []
-  const base = BASEMAPS[prefs.basemap]
+  const base = prefs.basemap === 'enkel' ? null : BASEMAPS[prefs.basemap]
   const chanceTab = prefs.tab === 'chans'
   const showForest = prefs.filter.enabled && (!chanceTab || prefs.forestUnder)
   // Kartans mitt i en kommun som inte analyseras: erbjud att lägga till den direkt
@@ -421,8 +425,10 @@ export default function MapView() {
   return (
     <div className="relative h-dvh w-full overflow-hidden">
       <MapContainer center={startView.center} zoom={startView.zoom} minZoom={4} maxZoom={19} zoomControl={false} className="isolate size-full" ref={setMap} worldCopyJump>
-        <TileLayer key={prefs.basemap} url={base.url} attribution={base.attribution} maxNativeZoom={base.maxNativeZoom} maxZoom={19} subdomains={base.subdomains ?? 'abc'} className={base.className} crossOrigin="anonymous" />
-        {base.detail && <TileLayer key={`${prefs.basemap}-detail`} url={base.detail.url} minZoom={base.detail.minZoom} maxZoom={19} crossOrigin="anonymous" />}
+        {/* Utan nät (eller när en kartbild inte gått att hämta) ligger den enkla kartan under kartbilderna: den syns där bilderna saknas */}
+        {(!base || !online || baseFailed) && <SimpleOverlay />}
+        {base && <TileLayer key={prefs.basemap} eventHandlers={{ tileerror: () => setBaseFailed(true) }} url={base.url} attribution={base.attribution} maxNativeZoom={base.maxNativeZoom} maxZoom={19} subdomains={base.subdomains ?? 'abc'} className={base.className} crossOrigin="anonymous" />}
+        {base?.detail && <TileLayer key={`${prefs.basemap}-detail`} url={base.detail.url} minZoom={base.detail.minZoom} maxZoom={19} crossOrigin="anonymous" />}
         {prefs.hillshade && (
           <Pane name="hillshade" style={{ zIndex: 250, mixBlendMode: 'multiply' }}>
             <TileLayer url={HILLSHADE_URL} opacity={prefs.hillshadeOpacity} maxNativeZoom={16} maxZoom={19} attribution="Terrängskuggning &copy; Esri" crossOrigin="anonymous" />
@@ -945,8 +951,12 @@ function Panel({
           { value: 'flygfoto', label: 'Flygfoto' },
           { value: 'ljus', label: 'Karta' },
           { value: 'terrang', label: 'Terräng' },
+          { value: 'enkel', label: 'Enkel' },
         ]}
       />
+      <p className="-mt-2 text-[12px] leading-relaxed text-ink-muted">
+        Enkel ritas ur sparad data och fungerar utan täckning i områden du sparat för offline. Den visas också av sig själv där flygfotot saknas när du är utan nät.
+      </p>
       {prefs.tab === 'chans' && (
         <Toggle label="Skogsområden under" description="Visa skogstyperna svagt under chansen" checked={prefs.forestUnder} onChange={(forestUnder) => setPrefs((p) => ({ ...p, forestUnder }))} />
       )}

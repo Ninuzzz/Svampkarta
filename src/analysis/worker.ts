@@ -963,10 +963,24 @@ function hotspots(f: Features, best: Float32Array, arg: Uint8Array, grids: Speci
 /* ------------------------------------------------------------------ */
 
 const INSPECT_Z = 14
+/** chanskartans zoom: den som sparas för offline (CHANCE_NATIVE_ZOOM i ChanceLayer) */
+const SAVED_Z = 13
 const ASPECTS = ['norr', 'nordost', 'öster', 'sydost', 'söder', 'sydväst', 'väster', 'nordväst']
 
-async function inspect(lat: number, lng: number, opts: ChanceOptions): Promise<InspectResult> {
-  const z = INSPECT_Z
+/**
+ * Analys av en punkt. Görs på zoom 14, men den datan finns inte sparad utan nät: ett område som
+ * sparats för offline har bara chanskartans zoom 13 (samma upplösning som marktäcket, 10 m).
+ * Utan nät, eller om zoom 14 inte svarat inom några sekunder, används därför zoom 13.
+ */
+async function inspectPoint(lat: number, lng: number, opts: ChanceOptions): Promise<InspectResult> {
+  if (!navigator.onLine) return inspect(lat, lng, opts, SAVED_Z).catch(() => inspect(lat, lng, opts))
+  const fine = inspect(lat, lng, opts)
+  const first = await Promise.race([fine.then((r) => r, () => null), new Promise<null>((r) => setTimeout(() => r(null), 5000))])
+  // går inte heller den sparade zoomen: vänta ut den fina (den kan vara långsam men på väg)
+  return first ?? inspect(lat, lng, opts, SAVED_Z).catch(() => fine)
+}
+
+async function inspect(lat: number, lng: number, opts: ChanceOptions, z = INSPECT_Z): Promise<InspectResult> {
   const n = 2 ** z
   const X = ((lng + 180) / 360) * n
   const Y = ((1 - Math.log(Math.tan((lat * Math.PI) / 180) + 1 / Math.cos((lat * Math.PI) / 180)) / Math.PI) / 2) * n
@@ -1194,7 +1208,7 @@ self.onmessage = async (e: MessageEvent<WorkerRequest>) => {
       const r = await chanceTile(req.z, req.x, req.y, req.opts, !!req.quick)
       reply({ id: req.id, ok: true, result: r }, [r.field.buffer])
     } else if (req.type === 'inspect') {
-      reply({ id: req.id, ok: true, result: await inspect(req.lat, req.lng, req.opts) })
+      reply({ id: req.id, ok: true, result: await inspectPoint(req.lat, req.lng, req.opts) })
     } else if (req.type === 'config') {
       TRAINING = req.training
       reply({ id: req.id, ok: true, result: null })
