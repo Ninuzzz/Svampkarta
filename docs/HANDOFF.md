@@ -8,7 +8,7 @@ Läs den här filen först i en ny session. Den beskriver läget, hur allt häng
 Den räknar fram var chansen är störst att hitta 8 svampar (ängschampinjon visas bara när den väljs) och 6 bär, utifrån skog, jordart, terräng, skogsålder, stigar och väder.
 Användarna kan spara egna platser, dagbok och rutter.
 
-- **Live:** https://mycel-svampkarta.pages.dev (Cloudflare Pages, manuell deploy, se nedan). Flyttad från Netlify 2026-10-08 när Netlifys gratiskrediter tog slut; den gamla adressen mycel-svampkarta.netlify.app visar en äldre version så länge Netlify håller den uppe.
+- **Live:** https://mycelkartan.se (egen domän sedan 2026-10-11, DNS hos Cloudflare, registrerad hos one.com) och https://mycel-svampkarta.pages.dev (samma sajt; Cloudflare Pages, manuell deploy, se nedan). Sparad data ligger i webbläsaren per adress: den som inte är inloggad får exportera säkerhetskopian på den gamla adressen och importera den på den nya. Skicka därför inte pages.dev vidare till domänen förrän användarna hunnit flytta. Flyttad från Netlify 2026-10-08 när Netlifys gratiskrediter tog slut; den gamla adressen mycel-svampkarta.netlify.app visar en äldre version så länge Netlify håller den uppe.
 - **Kod:** https://github.com/Ninuzzz/Svampkarta (gren `main`)
 - **Hemområde:** väljs av besökaren (se "Hemområde" nedan). Landskrona (kommunkod 1282) är utvecklarens eget och har handinställda startvyer.
 - **Språk i UI och kodkommentarer:** svenska. Användaren vill ha korta, handlingsinriktade svar på svenska.
@@ -117,6 +117,7 @@ Gjort:
 - `delete-account.sql` är körd (2026-10-08, kontrollerat: funktionen finns och nekar anonyma anrop).
 - E-postmallarna från `supabase/email/` är inlagda (bekräftat 2026-10-08).
 
+- **Att göra efter domänbytet 2026-10-11** (användaren, inte bekräftat än): lägg till `https://mycelkartan.se/**` under Redirect URLs och sätt Site URL till `https://mycelkartan.se` i Supabase, lägg till `mycelkartan.se` som Authorized domain i Googles Branding, och klistra in e-postmallarna igen.
 - Google-appen är publicerad (In production, 2026-10-08). Branding har startsida och länk till integritetssidan (`public/integritet.html`). Branding pekar på pages.dev (bytt 2026-10-08). Supabase Site URL och Redirect URLs är också bytta till pages.dev (2026-10-08). E-postmallarna i `supabase/email/` har den nya adressen men är inte inklistrade i Supabase igen.
 
 Oklart eller kvar:
